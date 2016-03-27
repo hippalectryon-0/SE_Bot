@@ -282,21 +282,6 @@ def handleActivity(activity):
             if item['event_type'] == 1:  # message posted
                 handleMessages(item)
             noGreet = getSavedData("noGreet.json")
-            if item['event_type'] == 3 and not (str(item['user_id']) in noGreet):  # user joined, except for the test room and not in noGreet list # and item['room_id'] != 10121
-                t = globalVars["roomsJoined"]
-
-                if not (item['user_id'] in t[str(item["room_id"])]["usersGreeted"]):  # user not greeted already
-                    t[str(item["room_id"])]["usersGreeted"].append(item["user_id"])
-                    setGlobalVars("roomsJoined", t)
-                    if item["user_id"] == 135450:  # IͶΔ
-                        s = ""
-                        for i in range(10):
-                            s += "  " + sendRandom(globalVars["tablesList"])
-                        sendMessage("__He has arrived !!!" + s + "__", item["room_id"])
-                    else:
-                        sendMessage("Welcome, " + item[
-                            "user_name"] + "! I am a bot. Here are our [chatroom etiquette guidelines](http://meta.chemistry.stackexchange.com/questions/2723/main-chatroom-etiquette-guidelines). _To disable this message, say !!nogreet, to re-enable it say !!greet_.",
-                                    item["room_id"])
 
 
 def handleMessages(message):
@@ -416,7 +401,7 @@ def handleMessages(message):
         for i in articles:
             fullMsg += '[' + i["title"] + "](" + i['url'] + ") | "
         sendMessage(fullMsg, MroomId)
-    if Mcontent.find('!!nogreet') >= 0:
+    w="""if Mcontent.find('!!nogreet') >= 0:
         noGreet=getSavedData("noGreet.json")
         if not str(message['user_id']) in noGreet:
             noGreet[message['user_id']] = MuserName
@@ -434,9 +419,22 @@ def handleMessages(message):
             log(MuserName + " was removed from the noGreet list.")
         else:
             sendMessage("You are not in the noGreet list.", MroomId)
-
+    """
+    if Mcontent.find('!!greet') >= 0:
+        user = McontentCase[Mcontent.find('greet/') + len('greet/'):].replace(' ', '%20').replace('</div>', '').replace(
+            '\n', '')
+        id=0
+        try:
+            id=int(user)
+        except Exception: pass
+        uName=user
+        if id!=None and id>0:
+            r=sendRequest("http://chat.stackexchange.com/users/"+user).text
+            p=r.find("<title>User ")+len("<title>User ")
+            uName=r[p:r.find(" |",p)]
+        sendMessage("Welcome to The Periodic Table " + uName + "! [Here](http://meta.chemistry.stackexchange.com/q/2723/7448) are our chat guidelines and it's recommended that you read them. If you want to turn Mathjax on, make a bookmark of [the link in this answer](http://meta.chemistry.stackexchange.com/a/1668/7448). Happy chatting!",
+                MroomId)
 
 # Main Loop
-
 login()
 joinRooms({"10121": handleActivity, "3229": handleActivity})  # 10121 : test, 3229 : chemistry
