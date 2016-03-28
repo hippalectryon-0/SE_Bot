@@ -316,7 +316,7 @@ def handleMessages(message):
         url = ans['link']
         editMessage(url, id, MroomId)
     if Mcontent.find('!!wiki/') >= 0:
-        article = McontentCase[Mcontent.find('wiki/') + len('wiki/'):].replace(' ', '%20').replace('</div>',
+        article = McontentCase[Mcontent.find('wiki/') + len('wiki/'):].replace(' ', '_').replace('</div>',
                                                                                                    '').replace('\n', '')
         id = sendMessage("https://en.wikipedia.org/wiki/" + article, MroomId)
     if Mcontent.find('!!table') >= 0:
