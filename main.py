@@ -70,8 +70,8 @@ globalVars = {
                    "○三　＼(￣^￣＼）", ",,,,,,,,((*￣(ｴ)￣)ﾉ ⌒☆ o*＿(x)_)", "(۶ૈ‡▼益▼)۶ૈ=͟͟͞͞ ⌨", "(ノω・)ノ⌒゛◆",
                    "(۶ૈ ۜ ᵒ̌▱๋ᵒ̌ )۶ૈ=͟͟͞͞ ⌨", "(۶ૈ ᵒ̌ Дᵒ̌)۶ૈ=͟͟͞͞ ⌨", "☆(ﾉ^o^)ﾉ‥‥‥…━━━━〇(^~^)",
                    "( つ•̀ω•́)つ・・*:・:・゜:==≡≡Σ=͟͟͞͞(✡)`Д´）"],
-    "iceCreamList": ["http://www.daytonaradio.com/wkro/wp-content/uploads/sites/4/2015/07/ice-cream.jpg",
-                     "http://scientopia.org/img-archive/ethicsandscience/img_319.jpg"],
+    "untablesList":["┬─┬ ノ( ^_^ノ)"],
+    "iceCreamList": ["http://www.daytonaradio.com/wkro/wp-content/uploads/sites/4/2015/07/ice-cream.jpg"],
     "gunsList": ["(҂‾ ▵‾)︻デ═一 (˚▽˚’!)/", "̿’ ̿’\̵͇̿̿\з=(ಥДಥ)=ε/̵͇̿̿/’̿’̿", "( う-´)づ︻╦̵̵̿╤── \(˚☐˚”)/", "(⌐■_■)–︻╦╤─",
                  "̿̿ ̿̿ ̿’̿’̵͇̿̿з=༼ ▀̿̿Ĺ̯̿̿▀̿ ̿ ༽	", "━╤デ╦︻(▀̿̿Ĺ̯̿̿▀̿ ̿)", "╾━╤デ╦︻	▄︻̷̿┻̿═━一", "︻╦̵̵͇̿̿̿̿══╤─",
                  "༼ ಠل͟ಠ༽ ̿ ̿ ̿ ̿’̿’̵з=༼ຈل͜ຈ༽ﾉ", "̿’ ̿’\̵͇̿̿\з=(ಡل͟ಡ)=ε/̵͇̿̿/’̿’̿", "￢o(￣-￣ﾒ)", "(҂`з´).っ︻デ═一",
@@ -86,6 +86,7 @@ globalVars = {
                  "!! ( ﾒ▼Д▼)┏☆====(((＿◇＿)======⊃", "!!(★▼▼)o┳*—————–●));´ﾛ`))", "!! ﾍ(ToTﾍ)))　・　—　　ε￢(▼▼メ)凸",
                  "ヽ༼ຈ益ຈ༽_•︻̷̿┻̿═━一|<——— ҉ Ĺ̯̿̿▀̿ ̿)", "ヽ༼xل͜x༽ﾉ <===== ̿’ ̿’\̵͇̿̿\з༼ຈل͜ຈ༽ ε/̵͇̿̿/’̿’̿ =====> ヽ༼xل͜x༽ﾉ",
                  "ლ[☉︿۝)७)७︻̷┻̿═━一︻̷┻̿═━一", "( φ_<)r┬ ━━━━━━…=>"],
+    "owners":["113953","135450","24986","117922"]
 }
 
 
@@ -322,6 +323,9 @@ def handleMessages(message):
     if Mcontent.find('!!table') >= 0:
         #
         sendMessage(sendRandom(globalVars["tablesList"]), MroomId)
+    if Mcontent.find('!!untable') >= 0:
+        #
+        sendMessage(sendRandom(globalVars["untablesList"]), MroomId)
     if Mcontent.find('!!gun') >= 0:
         #
         sendMessage(sendRandom(globalVars["gunsList"]), MroomId)
@@ -330,7 +334,7 @@ def handleMessages(message):
         sendMessage("http://www.mandevillebeergarden.com/wp-content/uploads/2015/02/Beer-Slide-Background.jpg", MroomId)
     if Mcontent.find('!!coffee') >= 0:
         #
-        sendMessage("http://science-all.com/images/coffee/coffee-03.jpg", MroomId)
+        sendMessage("http://res.freestockphotos.biz/pictures/10/10641-a-cup-of-coffee-on-a-bean-background-pv.jpg", MroomId)
     if Mcontent.find('!!ice cream') >= 0:
         #
         sendMessage(sendRandom(globalVars["iceCreamList"]), MroomId)
@@ -434,6 +438,16 @@ def handleMessages(message):
             uName=r[p:r.find(" |",p)]
         sendMessage("Welcome to The Periodic Table " + uName + "! [Here](http://meta.chemistry.stackexchange.com/q/2723/7448) are our chat guidelines and it's recommended that you read them. If you want to turn Mathjax on, make a bookmark of [the link in this answer](http://meta.chemistry.stackexchange.com/a/1668/7448). Happy chatting!",
                 MroomId)
+    if Mcontent.find('!!sleep') >= 0:
+        if str(message['user_id']) in globalVars["owners"]:
+            timeSleep=McontentCase[Mcontent.find('sleep/') + len('sleep/'):].replace(' ', '%20').replace('</div>', '').replace(
+                '\n', '')
+            try:
+                timeSleep=float(timeSleep)*60
+                sendMessage("See you in "+str(timeSleep/60.)+" minutes !", MroomId)
+                time.sleep(timeSleep)
+            except Exception:
+                sendMessage("invalid time",MroomId)
 
 # Main Loop
 login()
