@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 # Imports and initialization
-import requests, codecs, time, random, shutil, urllib, json
+import requests, codecs, time, random, shutil, urllib, json, getpass
 from PIL import Image
 from imgurpython import ImgurClient  # Communicate with Imgur
 
@@ -10,8 +10,8 @@ client_id = 'fb1b922cb86bb0f'  # Imgur module setup
 client_secret = 'cffaf5da440289a8923f9be60c22b26e25675d3d'
 clientImg = ImgurClient(client_id, client_secret)
 
-email = "emailHere"  # SE email and username. Don't leave them as plain text.
-password = "passwordHere"
+email = getpass.getpass("Email ? ")  # SE email and username. Don't leave them as plain text.
+password = getpass.getpass("Password ? ")
 
 session = requests.Session()  # main session for POST/GET requests
 
