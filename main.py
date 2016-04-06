@@ -295,8 +295,9 @@ def handleMessages(message):
     if Mcontent.find('!!img/') >= 0:
         id = sendMessage("Hold tight, I'm processing your request ... " + sendRandom(globalVars["tablesList"]), MroomId)
         molec = McontentCase[Mcontent.find('img/') + len('img/'):].replace(' ', '%20').replace('</div>', '').replace(
-            '\n', '')
+            '\n', '').replace('&#39;',"'")
         reqUrl = "http://cactus.nci.nih.gov/chemical/structure/" + molec + "/image"
+        print(reqUrl)
         # print(molec, reqUrl)
         molecImg = session.get(reqUrl, stream=True)
         with open('mol.gif', 'wb') as out_file:
@@ -451,4 +452,4 @@ def handleMessages(message):
 
 # Main Loop
 login()
-joinRooms({"10121": handleActivity, "3229": handleActivity})  # 10121 : test, 3229 : chemistry
+joinRooms({"25323": handleActivity, "3229": handleActivity})  # 10121 : test, 3229 : chemistry
