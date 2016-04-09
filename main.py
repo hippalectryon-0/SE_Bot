@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 # Imports and initialization
-import requests, codecs, time, random, shutil, urllib, json, getpass
+import requests, codecs, time, random, shutil, urllib, json, getpass, thread
 from PIL import Image
 from imgurpython import ImgurClient  # Communicate with Imgur
 
@@ -68,25 +68,31 @@ globalVars = {
                    "○三　＼(￣^￣＼）", ",,,,,,,,((*￣(ｴ)￣)ﾉ ⌒☆ o*＿(x)_)", "(۶ૈ‡▼益▼)۶ૈ=͟͟͞͞ ⌨", "(ノω・)ノ⌒゛◆",
                    "(۶ૈ ۜ ᵒ̌▱๋ᵒ̌ )۶ૈ=͟͟͞͞ ⌨", "(۶ૈ ᵒ̌ Дᵒ̌)۶ૈ=͟͟͞͞ ⌨", "☆(ﾉ^o^)ﾉ‥‥‥…━━━━〇(^~^)",
                    "( つ•̀ω•́)つ・・*:・:・゜:==≡≡Σ=͟͟͞͞(✡)`Д´）"],
-    "untablesList":["┬─┬ ノ( ^_^ノ)","┬──┬◡ﾉ(° -°ﾉ)", "┬━┬ ノ( ゜¸゜ノ)", "┬━┬ ノ( ゜-゜ノ)", "┳━┳ ヽ༼ಠل͜ಠ༽ﾉ", "┬──┬ ¯\\\_(ツ)",
-                    "┬──┬ ノ( ゜-゜ノ)", "(ヘ･_･)ヘ┳━┳", "┻o(Ｔ＿Ｔ )ミ( ；＿；)o┯", "┣ﾍ(≧∇≦ﾍ)… (≧∇≦)/┳━┳", "┣ﾍ(^▽^ﾍ)Ξ(ﾟ▽ﾟ*)ﾉ┳━┳",
-                    ],
+    "untablesList": ["┬─┬ ノ( ^_^ノ)", "┬──┬◡ﾉ(° -°ﾉ)", "┬━┬ ノ( ゜¸゜ノ)", "┬━┬ ノ( ゜-゜ノ)", "┳━┳ ヽ༼ಠل͜ಠ༽ﾉ", "┬──┬ ¯\\\_(ツ)",
+                     "┬──┬ ノ( ゜-゜ノ)", "(ヘ･_･)ヘ┳━┳", "┻o(Ｔ＿Ｔ )ミ( ；＿；)o┯", "┣ﾍ(≧∇≦ﾍ)… (≧∇≦)/┳━┳", "┣ﾍ(^▽^ﾍ)Ξ(ﾟ▽ﾟ*)ﾉ┳━┳",
+                     ],
     "iceCreamList": ["http://www.daytonaradio.com/wkro/wp-content/uploads/sites/4/2015/07/ice-cream.jpg"],
-    "gunsList": ["(҂‾ ▵‾)︻デ═一 (˚▽˚’!)/", "̿’ ̿’\\\̵͇̿̿\\\з=(ಥДಥ)=ε/̵͇̿̿/’̿’̿", "( う-´)づ︻╦̵̵̿╤── \\\(˚☐˚”)/", "(⌐■_■)–︻╦╤─",
+    "sushiCreamList": ["http://www.shopbelmontmarket.com/wp-content/uploads/page_img_sushi_01.jpg",
+                       "http://www.jim.fr/e-docs/00/02/66/5C/carac_photo_1.jpg",
+                       "http://www.harusushi.com/images/gallery/hires/Sushi-and-Sashimi-for-Two_1024.jpg"],
+    "gunsList": ["(҂‾ ▵‾)︻デ═一 (˚▽˚’!)/", "̿’ ̿’\\\̵͇̿̿\\\з=(ಥДಥ)=ε/̵͇̿̿/’̿’̿", "( う-´)づ︻╦̵̵̿╤── \\\(˚☐˚”)/",
+                 "(⌐■_■)–︻╦╤─",
                  "̿̿ ̿̿ ̿’̿’̵͇̿̿з=༼ ▀̿̿Ĺ̯̿̿▀̿ ̿ ༽	", "━╤デ╦︻(▀̿̿Ĺ̯̿̿▀̿ ̿)", "╾━╤デ╦︻	▄︻̷̿┻̿═━一", "︻╦̵̵͇̿̿̿̿══╤─",
                  "༼ ಠل͟ಠ༽ ̿ ̿ ̿ ̿’̿’̵з=༼ຈل͜ຈ༽ﾉ", "̿’ ̿’\\\̵͇̿̿\\\з=(ಡل͟ಡ)=ε/̵͇̿̿/’̿’̿", "￢o(￣-￣ﾒ)", "(҂`з´).っ︻デ═一",
                  "ᕕ╏ ͡ᵔ ‸ ͡ᵔ ╏و︻̷┻̿═━一", "⌐╦╦═─", "(ﾟ皿ﾟ)ｒ┏┳－－－＊", "・-/(。□。;/)—-┳┓y(-_・ )", "(ﾒ▼▼)┏)ﾟoﾟ)",
                  "[ﾉಠೃಠ]︻̷┻̿═━一", "……┳┓o(▼▼ｷ)", "(ｷ▼▼)o┏┳……", "(ﾒ▼皿▼)┳*–", "̿̿’̿’\\\̵͇̿̿\\\=(•̪●)=/̵͇̿̿/’̿̿ ̿ ̿ ̿",
                  "】ﾟДﾟ)┳—-ﾟ~:;’:;ω*:;’;—-", "ξ(✿ ❛‿❛)ξ▄︻┻┳═一	", "⁞ つ: •̀ ⌂ •́ : ⁞-︻╦̵̵͇̿̿̿̿══╤─",
                  "╾━╤デ╦︻ԅ། ･ิ _ʖ ･ิ །ง", "……┳┓o(-｀Д´-ﾒ )", "┌( ͝° ͜ʖ͡°)=ε/̵͇̿̿/’̿’̿ ̿ └། ๑ _ ๑ །┘", "(‥)←￢~(▼▼#)~~",
-                 "(ง⌐□ل͜□)︻̷┻̿═━一", "‘̿’\\\̵͇̿̿\\\=( `◟ 、)=/̵͇̿̿/’̿̿ ̿", "༼ ºل͟º ༽ ̿ ̿ ̿ ̿’̿’̵з=༼ ▀̿Ĺ̯▀̿ ̿ ༽", "(キ▼▼)＿┏┳……",
+                 "(ง⌐□ل͜□)︻̷┻̿═━一", "‘̿’\\\̵͇̿̿\\\=( `◟ 、)=/̵͇̿̿/’̿̿ ̿", "༼ ºل͟º ༽ ̿ ̿ ̿ ̿’̿’̵з=༼ ▀̿Ĺ̯▀̿ ̿ ༽",
+                 "(キ▼▼)＿┏┳……",
                  "( ͝ಠ ʖ ಠ)=ε/̵͇̿̿/’̿’̿ ̿", "ლ(~•̀︿•́~)つ︻̷┻̿═━一", "(ง ͠° / ^ \\\ °)-/̵͇̿̿/’̿’̿ ̿",
                  "(‘ºل͟º)ノ⌒. ̿̿ ̿̿ ̿’̿’̵͇̿̿з=༼ ▀̿̿Ĺ̯̿̿▀̿ ̿ ༽", "(▀̿̿Ĺ̯̿̿▀̿ ̿)•︻̷̿┻̿┻═━━ヽ༼ຈ益ຈ༽ﾉ",
                  "ー═┻┳︻▄ξ(✿ ❛‿❛)ξ▄︻┻┳═一", "ﾍ(ToTﾍ)))　・　—　　ε￢(▼▼メ)凸", "( ﾒ▼Д▼)┏☆====(((＿◇＿)======⊃",
                  "!! ( ﾒ▼Д▼)┏☆====(((＿◇＿)======⊃", "!!(★▼▼)o┳*—————–●));´ﾛ`))", "!! ﾍ(ToTﾍ)))　・　—　　ε￢(▼▼メ)凸",
-                 "ヽ༼ຈ益ຈ༽_•︻̷̿┻̿═━一|<——— ҉ Ĺ̯̿̿▀̿ ̿)", "ヽ༼xل͜x༽ﾉ <===== ̿’ ̿’\\\̵͇̿̿\\\з༼ຈل͜ຈ༽ ε/̵͇̿̿/’̿’̿ =====> ヽ༼xل͜x༽ﾉ",
+                 "ヽ༼ຈ益ຈ༽_•︻̷̿┻̿═━一|<——— ҉ Ĺ̯̿̿▀̿ ̿)",
+                 "ヽ༼xل͜x༽ﾉ <===== ̿’ ̿’\\\̵͇̿̿\\\з༼ຈل͜ຈ༽ ε/̵͇̿̿/’̿’̿ =====> ヽ༼xل͜x༽ﾉ",
                  "ლ[☉︿۝)७)७︻̷┻̿═━一︻̷┻̿═━一", "( φ_<)r┬ ━━━━━━…=>"],
-    "owners":["113953","135450","24986","117922"]
+    "owners": ["113953", "135450", "24986", "117922"]
 }
 
 
@@ -108,7 +114,7 @@ def logFile(r,
         f.write(str(r))
 
 
-def log(r, name="log.txt",verbose=True):  # Appends <r> to the log <name> and prints it.
+def log(r, name="log.txt", verbose=True):  # Appends <r> to the log <name> and prints it.
     r = str(r)
     with codecs.open(name, "a", encoding="utf-8") as f:
         timeStr = str(time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(time.time())))
@@ -144,16 +150,19 @@ def sendRequest(url, typeR="get", payload={}, headers={}):
             tries += 1
     return r
 
+
 def getSavedData(name):
-    name="savedData//"+name
+    name = "savedData//" + name
     with open(name) as json_file:
         data = json.load(json_file)
     return data
 
-def setSavedData(name,data):
+
+def setSavedData(name, data):
     name = "savedData/" + name
     with open(name, 'w') as outfile:
         json.dump(data, outfile)
+
 
 # Login
 
@@ -199,7 +208,7 @@ def login():
 
 # Chat Functions
 
-def sendMessage(msg, roomId="10121"):  # 10121 : test, 3229 : chemistry
+def sendMessage(msg, roomId="10121", noDelete=False):  # 10121 : test, 3229 : chemistry
     roomId = str(roomId)
     payload = {"fkey": globalVars["masterFkey"], "text": msg}
     r = sendRequest("http://chat.stackexchange.com/chats/" + roomId + "/messages/new", "post", payload)
@@ -211,8 +220,10 @@ def sendMessage(msg, roomId="10121"):  # 10121 : test, 3229 : chemistry
             log("Message too long : " + msg)
             return
         r = r.json()
-        return r["id"]
 
+        if noDelete: # noDelete actually deletes the message ;_;
+            thread.start_new_thread(deleteMessage, (r["id"], roomId, 60*1.7))
+        return r["id"]
 
 def editMessage(msg, id, roomId):
     roomId = str(roomId)
@@ -224,6 +235,16 @@ def editMessage(msg, id, roomId):
         time.sleep(3)
         editMessage(msg, id, roomId)
 
+def deleteMessage(id, roomId, waitTime=0):
+    time.sleep(waitTime)
+    roomId = str(roomId)
+    id = str(id)
+    payload = {"fkey": globalVars["masterFkey"]}
+    headers = {'Referer': "http://chat.stackexchange.com/rooms/" + roomId}
+    r = sendRequest("http://chat.stackexchange.com/messages/" + id + "/delete", "post", payload, headers).text
+    if r.find("You can perform this action again") >= 0:
+        time.sleep(3)
+        deleteMessage(id, roomId)
 
 def joinRooms(roomsDict):
     """
@@ -274,10 +295,10 @@ def joinRooms(roomsDict):
 
 
 def handleActivity(activity):
-    log("ping","activity.txt",verbose=False)
+    #log("ping", "activity.txt", verbose=False)
     if "e" in activity:
         for item in activity["e"]:
-            if item["user_id"] == 200207: # bot's user
+            if item["user_id"] == 200207:  # bot's user
                 continue
             # 1: message, 2: edit, 3: user enters, 4: user leaves
             if item['event_type'] == 1:  # message posted
@@ -290,12 +311,13 @@ def handleMessages(message):
     MuserName = str(message['user_name'].encode("utf-8"))
     MchatRoom = str(message['room_name'].encode("utf-8"))
     MroomId = str(message['room_id'])
+    noDelete=Mcontent.find('!!!')>=0
     print(MchatRoom + " | " + MuserName + ' : ' + Mcontent)
     Mcontent, McontentCase = Mcontent.lower(), Mcontent
     if Mcontent.find('!!img/') >= 0:
-        id = sendMessage("Hold tight, I'm processing your request ... " + sendRandom(globalVars["tablesList"]), MroomId)
+        id = sendMessage("Hold tight, I'm processing your request ... " + sendRandom(globalVars["tablesList"]), MroomId, noDelete=noDelete)
         molec = McontentCase[Mcontent.find('img/') + len('img/'):].replace(' ', '%20').replace('</div>', '').replace(
-            '\n', '').replace('&#39;',"'")
+            '\n', '').replace('&#39;', "'")
         reqUrl = "http://cactus.nci.nih.gov/chemical/structure/" + molec + "/image"
         print(reqUrl)
         # print(molec, reqUrl)
@@ -319,26 +341,34 @@ def handleMessages(message):
         editMessage(url, id, MroomId)
     if Mcontent.find('!!wiki/') >= 0:
         article = McontentCase[Mcontent.find('wiki/') + len('wiki/'):].replace(' ', '_').replace('</div>',
-                                                                                                   '').replace('\n', '')
-        id = sendMessage("https://en.wikipedia.org/wiki/" + article, MroomId)
+                                                                                                 '').replace('\n', '')
+        id = sendMessage("https://en.wikipedia.org/wiki/" + article, MroomId, noDelete=noDelete)
     if Mcontent.find('!!table') >= 0:
         #
-        sendMessage(sendRandom(globalVars["tablesList"]), MroomId)
+        sendMessage(sendRandom(globalVars["tablesList"]), MroomId, noDelete=noDelete)
     if Mcontent.find('!!untable') >= 0:
         #
-        sendMessage(sendRandom(globalVars["untablesList"]), MroomId)
+        sendMessage(sendRandom(globalVars["untablesList"]), MroomId, noDelete=noDelete)
     if Mcontent.find('!!gun') >= 0:
         #
-        sendMessage(sendRandom(globalVars["gunsList"]), MroomId)
+        sendMessage(sendRandom(globalVars["gunsList"]), MroomId, noDelete=noDelete)
     if Mcontent.find('!!beer') >= 0:
         #
-        sendMessage("http://www.mandevillebeergarden.com/wp-content/uploads/2015/02/Beer-Slide-Background.jpg", MroomId)
+        sendMessage("http://www.mandevillebeergarden.com/wp-content/uploads/2015/02/Beer-Slide-Background.jpg", MroomId, noDelete=noDelete)
+    if Mcontent.find('!!spam') >= 0:
+        #
+        sendMessage("https://upload.wikimedia.org/wikipedia/commons/0/09/Spam_can.png", MroomId,
+                    noDelete=noDelete)
     if Mcontent.find('!!coffee') >= 0:
         #
-        sendMessage("http://res.freestockphotos.biz/pictures/10/10641-a-cup-of-coffee-on-a-bean-background-pv.jpg", MroomId)
+        sendMessage("http://res.freestockphotos.biz/pictures/10/10641-a-cup-of-coffee-on-a-bean-background-pv.jpg",
+                    MroomId)
+    if Mcontent.find('!!sushi') >= 0:
+        #
+        sendMessage(sendRandom(globalVars["sushiCreamList"]), MroomId, noDelete=noDelete)
     if Mcontent.find('!!ice cream') >= 0:
         #
-        sendMessage(sendRandom(globalVars["iceCreamList"]), MroomId)
+        sendMessage(sendRandom(globalVars["iceCreamList"]), MroomId, noDelete=noDelete)
     if False and Mcontent.find('!!changelog') >= 0:
         changelog = """3/22/16 - Created the bot.
         3/23/16 - Added the <help> command - the bot now edits its message to save space - the bot now welcomes entering users
@@ -346,9 +376,9 @@ def handleMessages(message):
         3/25/16 - Added the <doi> command - bot no longer greets users if it has seen them earlier - added the <scholar> command
         3/26/16 - Bot no longer pings people when they enter.
         """
-        sendMessage(changelog, MroomId)
+        sendMessage(changelog, MroomId, noDelete=noDelete)
     if Mcontent.find('!!test') >= 0:
-        id = sendMessage("a test", MroomId)
+        id = sendMessage("a test", MroomId, noDelete=noDelete)
         time.sleep(1)
         editMessage("edited", id, MroomId)
     if Mcontent.find('!!help') >= 0:
@@ -359,17 +389,17 @@ def handleMessages(message):
             * wiki/[article] -> returns a link to wikiedia's page n <article> if I can find it
             * doi/[DOI] -> gives metadata on the requested DOI
             * scholar/[requests] -> executes the request on Google Scholar
-            ~ Syntax : !!commandName/[arguments] ~
+            ~ Syntax : !!!commandName/[arguments] for temporary messages, !!commandName/[arguments] for permanent ones ~
             I also greet new users, and have a few more less useful commands for fun.
             Example : !!img/3-(carboxymethyl)-12-ethyl-8,13,17-trimethyl- 21H,23H-porphine-2,7,18-tripropanoic acid
             """
-        sendMessage(helpString, MroomId)
+        sendMessage(helpString, MroomId, noDelete=noDelete)
     if Mcontent.find('!!doi/') >= 0:
         doi = McontentCase[Mcontent.find('doi/') + len('doi/'):].replace(' ', '%20').replace('</div>', '').replace(
             '\n', '')
         r = sendRequest("http://pubs.acs.org/doi/abs/" + doi).text
         if r.find('Your request resulted in an error') > 0:
-            sendMessage("Could not find the requested DOI : " + doi, MroomId)
+            sendMessage("Could not find the requested DOI : " + doi, MroomId, noDelete=noDelete)
         else:
             try:
                 p = r.find('dc.Title" content="') + len('dc.Title" content="')
@@ -378,9 +408,9 @@ def handleMessages(message):
                 p = r.find('dc.Creator" content="') + len('dc.Creator" content="')
                 author1 = r[p:r.find('" />', p)]
 
-                sendMessage("DOI " + doi + ' :\n"' + title + '"\nFirst author : ' + author1, MroomId)
+                sendMessage("DOI " + doi + ' :\n"' + title + '"\nFirst author : ' + author1, MroomId, noDelete=noDelete)
             except Exception as e:
-                sendMessage("An error occured :" + str(e), MroomId)
+                sendMessage("An error occured :" + str(e), MroomId, noDelete=noDelete)
     if Mcontent.find('!!scholar/') >= 0:
         search = McontentCase[Mcontent.find('scholar/') + len('scholar/'):].replace(' ', '%20').replace('</div>',
                                                                                                         '').replace(
@@ -405,51 +435,55 @@ def handleMessages(message):
         fullMsg = "[Link to the request](" + reqUrl + "). Top links : "
         for i in articles:
             fullMsg += '[' + i["title"] + "](" + i['url'] + ") | "
-        sendMessage(fullMsg, MroomId)
-    w="""if Mcontent.find('!!nogreet') >= 0:
+        sendMessage(fullMsg, MroomId, noDelete=noDelete)
+    w = """if Mcontent.find('!!nogreet') >= 0:
         noGreet=getSavedData("noGreet.json")
         if not str(message['user_id']) in noGreet:
             noGreet[message['user_id']] = MuserName
             setSavedData("noGreet.json",noGreet)
-            sendMessage(MuserName + " was added to the noGreet list.", MroomId)
+            sendMessage(MuserName + " was added to the noGreet list.", MroomId, noDelete=noDelete)
             log(MuserName + " was added to the noGreet list.")
         else:
-            sendMessage("You are already in the noGreet list.", MroomId)
+            sendMessage("You are already in the noGreet list.", MroomId, noDelete=noDelete)
     if Mcontent.find('!!greet') >= 0:
         noGreet = getSavedData("noGreet.json")
         if str(message['user_id']) in noGreet:
             noGreet.pop(str(message['user_id']))
             setSavedData("noGreet.json", noGreet)
-            sendMessage(MuserName + " was removed from the noGreet list.", MroomId)
+            sendMessage(MuserName + " was removed from the noGreet list.", MroomId, noDelete=noDelete)
             log(MuserName + " was removed from the noGreet list.")
         else:
-            sendMessage("You are not in the noGreet list.", MroomId)
+            sendMessage("You are not in the noGreet list.", MroomId, noDelete=noDelete)
     """
     if Mcontent.find('!!greet') >= 0:
         user = McontentCase[Mcontent.find('greet/') + len('greet/'):].replace(' ', '%20').replace('</div>', '').replace(
             '\n', '')
-        id=0
+        id = 0
         try:
-            id=int(user)
-        except Exception: pass
-        uName=user
-        if id!=None and id>0:
-            r=sendRequest("http://chat.stackexchange.com/users/"+user).text
-            p=r.find("<title>User ")+len("<title>User ")
-            uName=r[p:r.find(" |",p)]
-        sendMessage("Welcome to The Periodic Table " + uName + "! [Here](http://meta.chemistry.stackexchange.com/q/2723/7448) are our chat guidelines and it's recommended that you read them. If you want to turn Mathjax on, make a bookmark of [the link in this answer](http://meta.chemistry.stackexchange.com/a/1668/7448). Happy chatting!",
-                MroomId)
+            id = int(user)
+        except Exception:
+            pass
+        uName = user
+        if id != None and id > 0:
+            r = sendRequest("http://chat.stackexchange.com/users/" + user).text
+            p = r.find("<title>User ") + len("<title>User ")
+            uName = r[p:r.find(" |", p)]
+        sendMessage(
+            "Welcome to The Periodic Table " + uName + "! [Here](http://meta.chemistry.stackexchange.com/q/2723/7448) are our chat guidelines and it's recommended that you read them. If you want to turn Mathjax on, make a bookmark of [the link in this answer](http://meta.chemistry.stackexchange.com/a/1668/7448). Happy chatting!",
+            MroomId)
     if Mcontent.find('!!sleep') >= 0:
         if str(message['user_id']) in globalVars["owners"]:
-            timeSleep=McontentCase[Mcontent.find('sleep/') + len('sleep/'):].replace(' ', '%20').replace('</div>', '').replace(
+            timeSleep = McontentCase[Mcontent.find('sleep/') + len('sleep/'):].replace(' ', '%20').replace('</div>',
+                                                                                                           '').replace(
                 '\n', '')
             try:
-                timeSleep=float(timeSleep)*60
-                sendMessage("See you in "+str(timeSleep/60.)+" minutes !", MroomId)
+                timeSleep = float(timeSleep) * 60
+                sendMessage("See you in " + str(timeSleep / 60.) + " minutes !", MroomId, noDelete=noDelete)
                 time.sleep(timeSleep)
             except Exception:
-                sendMessage("invalid time",MroomId)
+                sendMessage("invalid time", MroomId, noDelete=noDelete)
+
 
 # Main Loop
 login()
-joinRooms({"25323": handleActivity, "3229": handleActivity})  # 10121 : test, 3229 : chemistry
+joinRooms({"25323": handleActivity, "3229": handleActivity, "26060": handleActivity, "38172": handleActivity})  # 10121 : test, 3229 : chemistry, 26060 : g-block, 38172 : chemobot
