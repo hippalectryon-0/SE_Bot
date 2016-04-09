@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 # Imports and initialization
 import requests, codecs, time, random, shutil, urllib, json, getpass, thread
+import numpy as np
 from PIL import Image
 from imgurpython import ImgurClient  # Communicate with Imgur
 
@@ -163,6 +164,13 @@ def setSavedData(name, data):
     with open(name, 'w') as outfile:
         json.dump(data, outfile)
 
+def removeUselessSpace(path):
+    image=Image.open(path)
+    image.load()
+
+    imageBox = image.getbbox()
+    cropped=image.crop(imageBox)
+    cropped.save('cropped_'+path)
 
 # Login
 
@@ -330,10 +338,10 @@ def handleMessages(message):
             editMessage("<An error occured : " + str(e) + ". Check your molecule's name.>", id, MroomId)
             return
         del molecImg
-
+        removeUselessSpace('mol.png')
         ans = ""
         try:
-            ans = clientImg.upload_from_path('mol.png')
+            ans = clientImg.upload_from_path('cropped_mol.png')
         except Exception as e:
             editMessage("<An error occured : " + str(e) + ". Check your molecule's name.>", id, MroomId)
             return
