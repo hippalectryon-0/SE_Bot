@@ -1,7 +1,7 @@
 # SE_Bot
 A bot for StackExchange chatrooms. In use in ChemistrySE's main chatroom.
 
-## How to use this framework
+## How to use this framework [Outdated help, will update later]
 
 Enter the email and password of the account you will be using in the appropriate fields at the beginning of the script.
 
