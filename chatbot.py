@@ -212,54 +212,68 @@ def deleteMessage(id, roomId, waitTime=0):
 
 
 def joinRooms(roomsDict):
-    """
-    roomsTable is a dict {str(roomId):activityActionFunction}
-    The ActivityActionFunction is triggred every time some activity related to that room is recorded.
-    """
-    payload = {"fkey": globalVars["masterFkey"], 'since': 0, 'mode': 'Messages', 'msgCount': 100}
-    for key in roomsDict.keys():
-        roomId = str(key)
+    def joinRooms_main():
+        """
+        roomsTable is a dict {str(roomId):activityActionFunction}
+        The ActivityActionFunction is triggred every time some activity related to that room is recorded.
+        """
+        payload = {"fkey": globalVars["masterFkey"], 'since': 0, 'mode': 'Messages', 'msgCount': 100}
+        for key in roomsDict.keys():
+            roomId = str(key)
 
-        # configure saved data
-        for name in [roomId, roomId + '//temp', roomId + '//savedData']:
-            if not os.path.exists(name):
-                os.makedirs(name)
+            # configure saved data
+            for name in [roomId, roomId + '//temp', roomId + '//savedData']:
+                if not os.path.exists(name):
+                    os.makedirs(name)
 
-        r = sendRequest("http://chat.stackexchange.com/chats/" + roomId + "/events", "post", payload).json()
-        t = globalVars["roomsJoined"]
-        t[roomId] = {"eventtime": r['time']}
+            r = sendRequest("http://chat.stackexchange.com/chats/" + roomId + "/events", "post", payload).json()
+            t = globalVars["roomsJoined"]
+            t[roomId] = {"eventtime": r['time']}
 
-        r = sendRequest("http://chat.stackexchange.com/rooms/info/" + roomId, "post", payload).text  # get room info
-        roomName = ""
-        try:
-            p = r.find("all time messages in ")
-            roomName = r[p + len("all time messages in "):r.find('"', p)]
-        except Exception:
-            log("Failed to scrape metadata for room : " + roomId)
-        t[roomId]["roomName"] = roomName
-        t[roomId]["usersGreeted"] = []
-
-        setGlobalVars("roomsJoined", t)  # update global table
-        log("Joined room : " + roomName + " / id: " + roomId)
-    while True:
-        for key in globalVars["roomsJoined"]:
-            room = globalVars["roomsJoined"][key]
-            roomId = key
-            lastTime = room["eventtime"]
-            payload = {"fkey": globalVars["masterFkey"], 'r' + roomId: lastTime}
-            activity = sendRequest("http://chat.stackexchange.com/events", "post", payload).json()
-            roomResult = {}
-            try:  # update eventtime
-                roomResult = activity['r' + roomId]
-                eventtime = roomResult['t']
-                t = globalVars["roomsJoined"]
-                t[roomId]["eventtime"] = eventtime
-                setGlobalVars("roomsJoined", t)
-            except KeyError as ex:
-                pass  # no updated time from room
-            activityHandler = roomsDict[key]
+            r = sendRequest("http://chat.stackexchange.com/rooms/info/" + roomId, "post", payload).text  # get room info
+            roomName = ""
             try:
-                activityHandler(roomResult)  # send activity to designated function
-            except Exception as e:
-                log("Error occured while sending event <" + str(roomResult) + "> : " + getException())
-        time.sleep(5)
+                p = r.find("all time messages in ")
+                roomName = r[p + len("all time messages in "):r.find('"', p)]
+            except Exception:
+                log("Failed to scrape metadata for room : " + roomId)
+            t[roomId]["roomName"] = roomName
+            t[roomId]["usersGreeted"] = []
+
+            setGlobalVars("roomsJoined", t)  # update global table
+            log("Joined room : " + roomName + " / id: " + roomId)
+        while True:
+            for key in globalVars["roomsJoined"]:
+                room = globalVars["roomsJoined"][key]
+                roomId = key
+                lastTime = room["eventtime"]
+                payload = {"fkey": globalVars["masterFkey"], 'r' + roomId: lastTime}
+                activity = sendRequest("http://chat.stackexchange.com/events", "post", payload).json()
+                roomResult = {}
+                try:  # update eventtime
+                    roomResult = activity['r' + roomId]
+                    eventtime = roomResult['t']
+                    t = globalVars["roomsJoined"]
+                    t[roomId]["eventtime"] = eventtime
+                    setGlobalVars("roomsJoined", t)
+                except KeyError as ex:
+                    pass  # no updated time from room
+                activityHandler = roomsDict[key]
+                try:
+                    activityHandler(roomResult)  # send activity to designated function
+                except Exception as e:
+                    log("Error occured while sending event <" + str(roomResult) + "> : " + getException())
+            time.sleep(5)
+    threading.Thread(target=joinRooms_main).start()
+
+def enableControl(roomId):
+    roomId=str(roomId)
+    while not (roomId in globalVars["roomsJoined"]):
+        time.sleep(1)
+    roomName=globalVars["roomsJoined"][roomId]["roomName"]
+    while True:
+        msg=str(raw_input(roomName + ' ('+roomId+') > '))
+        try:
+            sendMessage(msg,roomId)
+        except Exception as e:
+            print('Failed : '+str(e))
