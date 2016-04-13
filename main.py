@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-import chatbot, random, shutil, time, urllib, sys
+import chatbot, random, shutil, time, urllib, sys, upsidedown
 from PIL import Image
 from imgurpython import ImgurClient
 
@@ -76,6 +76,8 @@ coolTables = {
                    "○三　＼(￣^￣＼）", ",,,,,,,,((*￣(ｴ)￣)ﾉ ⌒☆ o*＿(x)_)", "(۶ૈ‡▼益▼)۶ૈ=͟͟͞͞ ⌨", "(ノω・)ノ⌒゛◆",
                    "(۶ૈ ۜ ᵒ̌▱๋ᵒ̌ )۶ૈ=͟͟͞͞ ⌨", "(۶ૈ ᵒ̌ Дᵒ̌)۶ૈ=͟͟͞͞ ⌨", "☆(ﾉ^o^)ﾉ‥‥‥…━━━━〇(^~^)",
                    "( つ•̀ω•́)つ・・*:・:・゜:==≡≡Σ=͟͟͞͞(✡)`Д´）"],
+    "flipsList": ["( つ•̀ω•́)つ","(∿°○°)∿","(۶ૈ‡▼益▼)۶", "◟(`ﮧ´ ◟ )","(╯°ਊ°)╯︵", "(づಥਊಥ)づ︵", "(づ๑ʖ๑)┛︵"],
+    "doubleflipsList": ["╰(*ﾟxﾟ​*)╯","＼(｀д´)／","︵╰(゜益゜)╯︵ ","╰(«○»益«○»)╯","︵╰(゜Д゜)╯︵"],
     "untablesList": ["┬─┬ ノ( ^_^ノ)", "┬──┬◡ﾉ(° -°ﾉ)", "┬━┬ ノ( ゜¸゜ノ)", "┬━┬ ノ( ゜-゜ノ)", "┳━┳ ヽ༼ಠل͜ಠ༽ﾉ",
                      "┬──┬ ¯\\\_(ツ)",
                      "┬──┬ ノ( ゜-゜ノ)", "(ヘ･_･)ヘ┳━┳", "┻o(Ｔ＿Ｔ )ミ( ；＿；)o┯", "┣ﾍ(≧∇≦ﾍ)… (≧∇≦)/┳━┳",
@@ -155,6 +157,8 @@ def handleMessages(message):
     tempDataPath = MroomId + '//temp//'
     chatbot.log(MuserName + ' : ' + Mcontent, name=MroomId + '//log.txt', verbose=False)
     print(MchatRoom + " | " + MuserName + ' : ' + Mcontent)
+    if random.randint(1, 1000) == 133:
+        chatbot.sendMessage(u"🎺🎺🎺 AND HIS NAME IS JOHN CENA 🎺🎺🎺", MroomId)
     Mcontent, McontentCase = Mcontent.lower(), Mcontent
     if Mcontent.find('!!img/') >= 0:
         id = chatbot.sendMessage(
@@ -186,9 +190,20 @@ def handleMessages(message):
         article = McontentCase[Mcontent.find('wiki/') + len('wiki/'):].replace(' ', '_').replace('</div>',
                                                                                                  '').replace('\n', '')
         id = chatbot.sendMessage("https://en.wikipedia.org/wiki/" + article, MroomId, noDelete=noDelete)
-    if Mcontent.find('!!table') >= 0:
-        #
-        chatbot.sendMessage(random.choice(coolTables["tablesList"]), MroomId, noDelete=noDelete)
+    if Mcontent.find('!!flip') >= 0:
+        p=Mcontent.find('flip/')+len("flip/")
+        if p>=len("flip/"):
+            chatbot.sendMessage(random.choice(coolTables["flipsList"])+upsidedown.transform(Mcontent[p:])[::-1], MroomId, noDelete=noDelete)
+        else:
+            chatbot.sendMessage(random.choice(coolTables["tablesList"]), MroomId, noDelete=noDelete)
+    if Mcontent.find('!!doubleflip') >= 0:
+        p = Mcontent.find('doubleflip/') + len("doubleflip/")
+        if p >= len("doubleflip/"):
+            sss=upsidedown.transform(Mcontent[p:])
+            chatbot.sendMessage(sss+random.choice(coolTables["doubleflipsList"]) + sss[::-1], MroomId,
+                                noDelete=noDelete)
+        else:
+            chatbot.sendMessage(random.choice(coolTables["tablesList"]), MroomId, noDelete=noDelete)
     if Mcontent.find('!!untable') >= 0:
         #
         chatbot.sendMessage(random.choice(coolTables["untablesList"]), MroomId, noDelete=noDelete)
@@ -198,6 +213,10 @@ def handleMessages(message):
     if Mcontent.find('!!beer') >= 0:
         #
         chatbot.sendMessage("http://www.mandevillebeergarden.com/wp-content/uploads/2015/02/Beer-Slide-Background.jpg",
+                            MroomId, noDelete=noDelete)
+    if Mcontent.find('!!tea') >= 0:
+        #
+        chatbot.sendMessage("https://pixabay.com/static/uploads/photo/2015/07/02/20/57/chamomile-829538_960_720.jpg",
                             MroomId, noDelete=noDelete)
     if Mcontent.find('!!spam') >= 0:
         #
@@ -301,7 +320,7 @@ def handleMessages(message):
         else:
             chatbot.sendMessage("You are not in the noGreet list.", MroomId, noDelete=noDelete)
     """
-    if Mcontent.find('!!greet') >= 0:
+    if Mcontent.find('!!greet/') >= 0:
         user = McontentCase[Mcontent.find('greet/') + len('greet/'):].replace(' ', '%20').replace('</div>', '').replace(
             '\n', '')
         id = 0
