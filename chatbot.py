@@ -25,7 +25,7 @@ else:
     email = str(raw_input(("Email ? ")))  # SE email and username. Don't leave them as plain text.
     password = getpass.getpass("Password ? ")
     storeEncrypted=str(raw_input("Do you want to encrypt and store those credidentials for a quicker access ? (y/n): ")).lower()
-    if storeEncrypted=='y' or storeEncrypted=='yes':
+    if storeEncrypted=='y' or storeEncrypted=='yes' or storeEncrypted is None or storeEncrypted=="":
         goodPassword=False
         hash_password1 = ""
         while not goodPassword:
@@ -269,6 +269,8 @@ def joinRooms(roomsDict):
 def enableControl(roomId):
     roomId=str(roomId)
     while not (roomId in globalVars["roomsJoined"]):
+        time.sleep(1)
+    while not ("roomName" in globalVars["roomsJoined"][roomId]):
         time.sleep(1)
     roomName=globalVars["roomsJoined"][roomId]["roomName"]
     while True:
