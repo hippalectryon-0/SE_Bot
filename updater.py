@@ -95,7 +95,7 @@ def handleMessages(message):
     if Mcontent.find('!!test') >= 0:
         id = chatbot.sendMessage("a test !!", MroomId, noDelete=noDelete)
         time.sleep(1)
-        chatbot.editMessage("edited", id, MroomId)
+        chatbot.editMessage("edited !", id, MroomId)
     if Mcontent.find('!!help') >= 0:
         helpString = """Hi! I'm the (for now) unofficial bot of ChemistrySE's main chatroom. __If you find me annoying, you can ignore me by clicking on my profile image and chosing "ignore this user"__
             Here are the useful commands I provide : (don't add the brackets)
