@@ -158,7 +158,7 @@ def handleMessages(message):
     chatbot.log(MuserName + ' : ' + Mcontent, name=MroomId + '//log.txt', verbose=False)
     print(MchatRoom + " | " + MuserName + ' : ' + Mcontent)
     if random.randint(1, 1000) == 133:
-        chatbot.sendMessage(u"🎺🎺🎺 AND HIS NAME IS JOHN CENA 🎺🎺🎺", MroomId)
+        chatbot.sendMessage(u"__🎺🎺🎺 AND HIS NAME IS JOHN CENA 🎺🎺🎺__", MroomId)
     Mcontent, McontentCase = Mcontent.lower(), Mcontent
     if Mcontent.find('!!img/') >= 0:
         id = chatbot.sendMessage(
@@ -242,9 +242,9 @@ def handleMessages(message):
         """
         chatbot.sendMessage(changelog, MroomId, noDelete=noDelete)
     if Mcontent.find('!!test') >= 0:
-        id = chatbot.sendMessage("a test", MroomId, noDelete=noDelete)
+        id = chatbot.sendMessage("a test !!", MroomId, noDelete=noDelete)
         time.sleep(1)
-        chatbot.editMessage("edited", id, MroomId)
+        chatbot.editMessage("edited !", id, MroomId)
     if Mcontent.find('!!help') >= 0:
         helpString = """Hi! I'm the (for now) unofficial bot of ChemistrySE's main chatroom. __If you find me annoying, you can ignore me by clicking on my profile image and chosing "ignore this user"__
             Here are the useful commands I provide : (don't add the brackets)
@@ -334,7 +334,7 @@ def handleMessages(message):
             p = r.find("<title>User ") + len("<title>User ")
             uName = r[p:r.find(" |", p)]
         chatbot.sendMessage(
-            "Welcome to The Periodic Table " + uName + "! [Here](http://meta.chemistry.stackexchange.com/q/2723/7448) are our chat guidelines and it's recommended that you read them. If you want to turn Mathjax on, make a bookmark of [the link in this answer](http://meta.chemistry.stackexchange.com/a/1668/7448). Happy chatting!",
+            "Welcome to The Periodic Table " + uName + "! [Here](http://meta.chemistry.stackexchange.com/q/2723/) are our chat guidelines and it's recommended that you read them. If you want to turn Mathjax on, follow the instructions [in this answer](http://meta.stackexchange.com/a/220976/). Happy chatting!",
             MroomId)
     if Mcontent.find('!!sleep') >= 0:
         if str(message['user_id']) in coolTables["owners"]:
@@ -347,7 +347,14 @@ def handleMessages(message):
                 time.sleep(timeSleep)
             except Exception:
                 chatbot.sendMessage("invalid time", MroomId, noDelete=noDelete)
-
+    if Mcontent.find('!!reload') >= 0:
+        if str(message['user_id']) in coolTables["owners"]:
+            try:
+                newCode=chatbot.sendRequest("https://raw.githubusercontent.com/gauthierhaas/SE_Bot/master/updater.py").text
+                exec(newCode, globals())
+                chatbot.sendMessage("Success !",MchatRoom)
+            except Exception as e:
+                chatbot.log("Error : "+str(e))
 
 chatbot.joinRooms({"25323": handleActivity, "3229": handleActivity, "26060": handleActivity, "38172": handleActivity,
                    "1": handleActivity})  # 10121 : test, 3229 : chemistry, 26060 : g-block, 38172 : chemobot, 1: sandbox
