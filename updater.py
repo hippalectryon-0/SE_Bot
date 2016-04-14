@@ -8,7 +8,7 @@ def handleMessages(message):
     tempDataPath = MroomId + '//temp//'
     chatbot.log(MuserName + ' : ' + Mcontent, name=MroomId + '//log.txt', verbose=False)
     print(MchatRoom + " | " + MuserName + ' : ' + Mcontent)
-    if random.randint(1, 1000) == 133:
+    if  Mcontent.find('!!') and random.randint(1, 1000) == 133:
         chatbot.sendMessage(u"__🎺🎺🎺 AND HIS NAME IS JOHN CENA 🎺🎺🎺__", MroomId)
     Mcontent, McontentCase = Mcontent.lower(), Mcontent
     if Mcontent.find('!!img/') >= 0:
