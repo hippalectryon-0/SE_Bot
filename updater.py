@@ -202,7 +202,6 @@ def handleMessages(message):
         if str(message['user_id']) in coolTables["owners"]:
             try:
                 newCode=chatbot.sendRequest("https://raw.githubusercontent.com/gauthierhaas/SE_Bot/master/updater.py").text
-                print(type(newCode), newCode[:20])
                 exec(newCode, globals())
                 chatbot.sendMessage("Success !",MchatRoom)
             except Exception as e:
