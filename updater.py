@@ -1,4 +1,3 @@
-chatbot.sendMessage("Use !!reload to reload me ! (only for mods)","3229")
 def handleMessages(message):
     Mcontent = message["content"].encode("utf-8").replace('<div>', '').replace('</div>', '').replace(
         "<div class='full'>", '')
