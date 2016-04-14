@@ -201,10 +201,8 @@ def handleMessages(message):
     if Mcontent.find('!!reload') >= 0:
         if str(message['user_id']) in coolTables["owners"]:
             try:
-                newCode="print(1)"
+                newCode=chatbot.sendRequest("https://raw.githubusercontent.com/gauthierhaas/SE_Bot/master/updater.py").text
+                print(type(newCode), newCode[:20])
                 exec(newCode, globals())
             except Exception as e:
                 chatbot.log("Error : "+str(e))
-
-chatbot.joinRooms({"25323": handleActivity, "3229": handleActivity, "26060": handleActivity, "38172": handleActivity,
-                   "1": handleActivity})  # 10121 : test, 3229 : chemistry, 26060 : g-block, 38172 : chemobot, 1: sandbox
