@@ -93,7 +93,7 @@ def handleMessages(message):
         """
         chatbot.sendMessage(changelog, MroomId, noDelete=noDelete)
     if Mcontent.find('!!test') >= 0:
-        id = chatbot.sendMessage("a test", MroomId, noDelete=noDelete)
+        id = chatbot.sendMessage("a test !!", MroomId, noDelete=noDelete)
         time.sleep(1)
         chatbot.editMessage("edited", id, MroomId)
     if Mcontent.find('!!help') >= 0:
@@ -204,5 +204,6 @@ def handleMessages(message):
                 newCode=chatbot.sendRequest("https://raw.githubusercontent.com/gauthierhaas/SE_Bot/master/updater.py").text
                 print(type(newCode), newCode[:20])
                 exec(newCode, globals())
+                chatbot.sendMessage("Success !",MchatRoom)
             except Exception as e:
                 chatbot.log("Error : "+str(e))
