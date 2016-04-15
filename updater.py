@@ -90,7 +90,7 @@ def handleMessages(message):
         time.sleep(1)
         chatbot.editMessage("edited !", id, MroomId)
     if Mcontent.find('!!help') >= 0:
-        helpString = """Hi! I'm the almighty bot of ChemistrySE's main chatroom. /!\ If you find me annoying, you can ignore me by clicking on my profile image and chosing "ignore this user" /!\. You can find my documentation [here](http://meta.chemistry.stackexchange.com/a/3198/5591)."""
+        helpString = """Hi! I'm the almighty bot of ChemistrySE's main chatroom. /!\ If you find me annoying, you can ignore me by clicking on my profile image and chosing "ignore this user" /!\ You can find my documentation [here](http://meta.chemistry.stackexchange.com/a/3198/5591)."""
         chatbot.sendMessage(helpString, MroomId, noDelete=noDelete)
     if Mcontent.find('!!doi/') >= 0:
         doi = McontentCase[Mcontent.find('doi/') + len('doi/'):].replace(' ', '%20').replace('</div>', '').replace(
