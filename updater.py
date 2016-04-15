@@ -1,4 +1,5 @@
 def handleMessages(message):
+    global dailyQuestionThread
     Mcontent = message["content"].encode("utf-8").replace('<div>', '').replace('</div>', '').replace(
         "<div class='full'>", '')
     MuserName = message['user_name'].encode("utf-8")
@@ -84,29 +85,13 @@ def handleMessages(message):
     if Mcontent.find('!!ice cream') >= 0:
         #
         chatbot.sendMessage(random.choice(coolTables["iceCreamList"]), MroomId, noDelete=noDelete)
-    if False and Mcontent.find('!!changelog') >= 0:
-        changelog = """3/22/16 - Created the bot.
-        3/23/16 - Added the <help> command - the bot now edits its message to save space - the bot now welcomes entering users
-        3/24/16 - Added the <changelog> command - updated <help> - refactored the whole code, rewrote the bot from scratch - moved host to Cloud9 - added support for multiple chatrooms at once - added the <wiki> command
-        3/25/16 - Added the <doi> command - bot no longer greets users if it has seen them earlier - added the <scholar> command
-        3/26/16 - Bot no longer pings people when they enter.
-        """
-        chatbot.sendMessage(changelog, MroomId, noDelete=noDelete)
     if Mcontent.find('!!test') >= 0:
         id = chatbot.sendMessage("a test !!", MroomId, noDelete=noDelete)
         time.sleep(1)
         chatbot.editMessage("edited !", id, MroomId)
     if Mcontent.find('!!help') >= 0:
-        helpString = """Hi! I'm the (for now) unofficial bot of ChemistrySE's main chatroom. __If you find me annoying, you can ignore me by clicking on my profile image and chosing "ignore this user"__
-            Here are the useful commands I provide : (don't add the brackets)
-            * img/[molecule's name] -> I will try and upload an image corresponding to your molecule. You can give its name, formula, SMILES, or any common identifier. When using complex InChI, use img/InChI=1/[molecule's InChI]
-            * help -> displays this message
-            * wiki/[article] -> returns a link to wikiedia's page n <article> if I can find it
-            * doi/[DOI] -> gives metadata on the requested DOI
-            * scholar/[requests] -> executes the request on Google Scholar
-            ~ Syntax : !!!commandName/[arguments] for temporary messages, !!commandName/[arguments] for permanent ones ~
-            I also greet new users, and have a few more less useful commands for fun.
-            Example : !!img/3-(carboxymethyl)-12-ethyl-8,13,17-trimethyl- 21H,23H-porphine-2,7,18-tripropanoic acid
+        helpString = """Hi! I'm the almighty bot of ChemistrySE's main chatroom. /!\\\ If you find me annoying, you can ignore me by clicking on my profile image and chosing "ignore this user" /!\\\
+        You can find my documentation [here](http://meta.chemistry.stackexchange.com/a/3198/5591)
             """
         chatbot.sendMessage(helpString, MroomId, noDelete=noDelete)
     if Mcontent.find('!!doi/') >= 0:
@@ -187,7 +172,8 @@ def handleMessages(message):
         chatbot.sendMessage(
             "Welcome to The Periodic Table " + uName + "! [Here](http://meta.chemistry.stackexchange.com/q/2723/) are our chat guidelines and it's recommended that you read them. If you want to turn Mathjax on, follow the instructions [in this answer](http://meta.stackexchange.com/a/220976/). Happy chatting!",
             MroomId)
-    if Mcontent.find('!!sleep') >= 0:
+    #** Owners only
+    if Mcontent.find('!!sleep/') >= 0:
         if str(message['user_id']) in coolTables["owners"]:
             timeSleep = McontentCase[Mcontent.find('sleep/') + len('sleep/'):].replace(' ', '%20').replace('</div>',
                                                                                                            '').replace(
@@ -206,3 +192,10 @@ def handleMessages(message):
                 chatbot.sendMessage("Success !",MchatRoom)
             except Exception as e:
                 chatbot.log("Error : "+str(e))
+    if Mcontent.find('!!daily') >= 0:
+        if str(message['user_id']) in coolTables["owners"]:
+            try:
+                dailyQuestionThread=threading.Thread(target=sendDailyQuestion, args={MroomId})
+                dailyQuestionThread.start()
+            except Exception as e:
+                chatbot.log("Error : " + str(e))
