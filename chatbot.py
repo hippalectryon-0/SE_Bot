@@ -112,14 +112,16 @@ def sendRequest(url, typeR="get", payload={}, headers={}):
 
 
 def getSavedData(name, roomId):
-    name = roomId + "//savedData//" + name
+    name = str(roomId) + "//savedData//" + str(name)
+    if not os.path.isfile(name):
+        return False
     with open(name) as json_file:
         data = json.load(json_file)
     return data
 
 
 def setSavedData(name, data, roomId):
-    name = roomId + "//savedData//" + name
+    name = str(roomId) + "//savedData//" + str(name)
     with open(name, 'w') as outfile:
         json.dump(data, outfile)
 
@@ -231,13 +233,16 @@ def joinRooms(roomsDict):
             t[roomId] = {"eventtime": r['time']}
 
             r = sendRequest("http://chat.stackexchange.com/rooms/info/" + roomId, "post", payload).text  # get room info
-            roomName = ""
+            roomName, roomNetworkUrl = "",""
             try:
-                p = r.find("all time messages in ")
-                roomName = r[p + len("all time messages in "):r.find('"', p)]
+                p = r.find("cdn-chat.sstatic.net/chat/css/chat.")+len("cdn-chat.sstatic.net/chat/css/chat.")
+                roomNetworkUrl = 'http://'+r[p:r.find('.css?', p)]
+                p = r.find("all time messages in ",p)+ len("all time messages in ")
+                roomName = r[p:r.find('"', p)]
             except Exception:
                 log("Failed to scrape metadata for room : " + roomId)
             t[roomId]["roomName"] = roomName
+            t[roomId]["roomNetworkUrl"] = roomNetworkUrl
             t[roomId]["usersGreeted"] = []
 
             setGlobalVars("roomsJoined", t)  # update global table
@@ -267,15 +272,69 @@ def joinRooms(roomsDict):
     threading.Thread(target=joinRooms_main).start()
 
 def enableControl(roomId):
-    roomId=str(roomId)
+    def enableControl_main(roomId):
+        roomId=str(roomId)
+        while not (roomId in globalVars["roomsJoined"]):
+            time.sleep(1)
+        while not ("roomName" in globalVars["roomsJoined"][roomId]):
+            time.sleep(1)
+        roomName=globalVars["roomsJoined"][roomId]["roomName"]
+        while True:
+            msg=str(raw_input(roomName + ' ('+roomId+') > '))
+            try:
+                sendMessage(msg,roomId)
+            except Exception as e:
+                print('Failed : '+str(e))
+    threading.Thread(target=enableControl_main,args={roomId}).start()
+
+def getNetworkQuestions(roomId,minVotes,maxNumber=200):
+    roomId = str(roomId)
     while not (roomId in globalVars["roomsJoined"]):
         time.sleep(1)
-    while not ("roomName" in globalVars["roomsJoined"][roomId]):
+    while not ("roomNetworkUrl" in globalVars["roomsJoined"][roomId]):
         time.sleep(1)
-    roomName=globalVars["roomsJoined"][roomId]["roomName"]
-    while True:
-        msg=str(raw_input(roomName + ' ('+roomId+') > '))
-        try:
-            sendMessage(msg,roomId)
-        except Exception as e:
-            print('Failed : '+str(e))
+    qUrl=globalVars["roomsJoined"][roomId]["roomNetworkUrl"]
+    topUrl=qUrl+"/questions"
+    questionsTable=[]
+    i,page=0,0
+    finished=False
+    while not finished:
+        page+=1
+        r=sendRequest(topUrl+"?pagesize=50&page="+str(page)+"&sort=votes").text
+        if r.find("Page Not Found")>=0:
+            finished=True
+            break
+        p=r.find('id="question-summary-')
+        while p>=0 and not finished:
+            if i>=maxNumber:
+                finished=True
+                break
+            p+=len('id="question-summary-')
+            questionId = r[p:r.find('">',p)]
+            p=r.find('vote-count-post "><strong>',p)+len('vote-count-post "><strong>')
+            votes=int(r[p:r.find('</strong>',p)])
+            if votes<minVotes:
+                finished=True
+                break
+            questionsTable.append(topUrl+'/'+questionId)
+            i += 1
+            p = r.find('id="question-summary-',p)
+    setSavedData("questions_interesting_"+str(minVotes),questionsTable,roomId)
+    log("Got "+str(i)+" questions above "+str(minVotes)+" in "+str(page)+" pages from "+topUrl)
+    return questionsTable
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
