@@ -249,25 +249,28 @@ def joinRooms(roomsDict):
             log("Joined room : " + roomName + " / id: " + roomId)
         while True:
             for key in globalVars["roomsJoined"]:
-                room = globalVars["roomsJoined"][key]
-                roomId = key
-                lastTime = room["eventtime"]
-                payload = {"fkey": globalVars["masterFkey"], 'r' + roomId: lastTime}
-                activity = sendRequest("http://chat.stackexchange.com/events", "post", payload).json()
-                roomResult = {}
-                try:  # update eventtime
-                    roomResult = activity['r' + roomId]
-                    eventtime = roomResult['t']
-                    t = globalVars["roomsJoined"]
-                    t[roomId]["eventtime"] = eventtime
-                    setGlobalVars("roomsJoined", t)
-                except KeyError as ex:
-                    pass  # no updated time from room
-                activityHandler = roomsDict[key]
-                try:
-                    activityHandler(roomResult)  # send activity to designated function
-                except Exception as e:
-                    log("Error occured while sending event <" + str(roomResult) + "> : " + getException())
+				try:
+					room = globalVars["roomsJoined"][key]
+					roomId = key
+					lastTime = room["eventtime"]
+					payload = {"fkey": globalVars["masterFkey"], 'r' + roomId: lastTime}
+					activity = sendRequest("http://chat.stackexchange.com/events", "post", payload).json()
+					roomResult = {}
+					try:  # update eventtime
+						roomResult = activity['r' + roomId]
+						eventtime = roomResult['t']
+						t = globalVars["roomsJoined"]
+						t[roomId]["eventtime"] = eventtime
+						setGlobalVars("roomsJoined", t)
+					except KeyError as ex:
+						pass  # no updated time from room
+					activityHandler = roomsDict[key]
+					try:
+						activityHandler(roomResult)  # send activity to designated function
+					except Exception as e:
+						log("Error occured while sending event <" + str(roomResult) + "> : " + getException())
+				except Exception as e:
+					log('Error while receiving json data from a chatroom : '+str(e))
             time.sleep(5)
     threading.Thread(target=joinRooms_main).start()
 
