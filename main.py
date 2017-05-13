@@ -3,6 +3,9 @@ import chatbot, random, shutil, time, urllib, sys, upsidedown, threading
 from PIL import Image
 from imgurpython import ImgurClient
 import  numpy as np
+from HTMLParser import HTMLParser
+
+HTMLparser = HTMLParser()
 
 client_id = 'fb1b922cb86bb0f'  # Imgur module setup
 client_secret = 'cffaf5da440289a8923f9be60c22b26e25675d3d'
@@ -88,6 +91,11 @@ coolTables = {
 	"sushiList": [
 		"http://www.shopbelmontmarket.com/wp-content/uploads/page_img_sushi_01.jpg",
 		"http://www.jim.fr/e-docs/00/02/66/5C/carac_photo_1.jpg"],
+	"cakeList": [
+		"https://s-media-cache-ak0.pinimg.com/736x/d7/e8/29/d7e8295cc27143127d735bdaaa9fa314.jpg",
+		"http://cdn001.cakecentral.com/gallery/2015/03/900_804210qttE_chemistry-cake.jpg",
+		"https://s-media-cache-ak0.pinimg.com/originals/de/a7/7e/dea77e272ff71bee9925890163bfe82e.jpg",
+		],
 	"gunsList": ["(҂‾ ▵‾)︻デ═一 (˚▽˚’!)/",
 				 "̿’ ̿’\\\̵͇̿̿\\\з=(ಥДಥ)=ε/̵͇̿̿/’̿’̿",
 				 "( う-´)づ︻╦̵̵̿╤── \\\(˚☐˚”)/",
@@ -156,8 +164,8 @@ def sendDailyQuestion(roomId):
 
 def handleMessages(message):
 	global dailyQuestionThread
-	Mcontent = message["content"].replace('<div>', '').replace('</div>', '').replace( #encode("utf-8").
-		"<div class='full'>", '')
+	Mcontent = HTMLparser.unescape(message["content"].replace('<div>', '').replace('</div>', '').replace( #encode("utf-8").
+		"<div class='full'>", '')).encode("utf-8")
 	MuserName = message['user_name'].encode("utf-8")
 	MchatRoom = message['room_name'].encode("utf-8")
 	MroomId = str(message['room_id'])  # int
@@ -165,7 +173,6 @@ def handleMessages(message):
 	tempDataPath = MroomId + '//temp//'
 	chatbot.log(MuserName + ' : ' + Mcontent, name=MroomId + '//log.txt', verbose=False)
 	print(MchatRoom + " | " + MuserName + ' : ' + Mcontent)
-	print(Mcontent.find('!!tea'))
 	if  Mcontent.find('!!')>0 and random.randint(1, 1000) == 133:
 		chatbot.sendMessage(u"__🎺🎺🎺 AND HIS NAME IS JOHN CENA 🎺🎺🎺__", MroomId)
 	Mcontent, McontentCase = Mcontent.lower(), Mcontent
@@ -263,6 +270,9 @@ def handleMessages(message):
 	if Mcontent.find('!!sushi') >= 0:
 		#
 		chatbot.sendMessage(random.choice(coolTables["sushiList"]), MroomId, noDelete=noDelete)
+	if Mcontent.find('!!cake') >= 0:
+		#
+		chatbot.sendMessage(random.choice(coolTables["cakeList"]), MroomId, noDelete=noDelete)
 	if Mcontent.find('!!ice cream') >= 0:
 		#
 		chatbot.sendMessage(random.choice(coolTables["iceCreamList"]), MroomId, noDelete=noDelete)
@@ -303,15 +313,19 @@ def handleMessages(message):
 
 		numArticles = 2
 		articles = []
-		art, p = 0, r.find('<h3 class="gs_rt"><a href="')
+		art, p = 0, r.find('<h3 class="gs_rt">')
+		with open("temp.txt","w") as f:
+			f.write(r)
 		while p >= 0 and art < numArticles:
-			p += len('<h3 class="gs_rt"><a href="')
+			p += len('<h3 class="gs_rt">')
+			p=r.find('"',p)
 			url = r[p:r.find('"', p)]
+			print(url)
 			p = r.find('">', p) + len('">')
 			title = r[p:r.find('</a>', p)].replace("<b>", "").replace("</b>", "")
 			art += 1
 			articles.append({"title": title, "url": url})
-			p = r.find('<h3 class="gs_rt"><a href="', p + 1)
+			p = r.find('<h3 class="gs_rt">', p + 1)
 		fullMsg = "[Link to the request](" + reqUrl + "). Top links : "
 		for i in articles:
 			fullMsg += '[' + i["title"] + "](" + i['url'] + ") | "
