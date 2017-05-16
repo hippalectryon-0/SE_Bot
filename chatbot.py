@@ -2,9 +2,6 @@
 # Imports and initialization
 import requests, codecs, time, json, getpass, threading, os, linecache, sys, simplecrypt
 
-reload(sys)
-sys.setdefaultencoding('utf8')
-
 # os.chdir("C:/Users/Hippa/PycharmProjects/CSE_chatbot")  # Change to script's directory. Will store images and logs here.
 
 if os.path.isfile("Credidentials"):
@@ -12,9 +9,9 @@ if os.path.isfile("Credidentials"):
 	while not goodPassword:
 		hash_password = getpass.getpass("Password for the encrypted credidentials ? ")
 		hash_password += '0' * (16-len(hash_password) % 16)
-		f=open("Credidentials");string=f.read();f.close()
-		encrypted_email=string[:string.find('|..|')]
-		encrypted_password = string[string.find('|..|')+len('|..|'):]
+		f=open("Credidentials","rb");string=f.read();f.close()
+		encrypted_email=string[:string.find(b'|..|')]
+		encrypted_password = string[string.find(b'|..|')+len(b'|..|'):]
 		try:
 			email=simplecrypt.decrypt(hash_password,encrypted_email)
 			password=simplecrypt.decrypt(hash_password,encrypted_password)
@@ -22,9 +19,9 @@ if os.path.isfile("Credidentials"):
 		except Exception as e:
 			print('Bad password / corrupted file, try again.')
 else:
-	email = str(raw_input(("Email ? ")))  # SE email and username. Don't leave them as plain text.
+	email = str(input(("Email ? ")))  # SE email and username. Don't leave them as plain text.
 	password = getpass.getpass("Password ? ")
-	storeEncrypted=str(raw_input("Do you want to encrypt and store those credidentials for a quicker access ? (y/n): ")).lower()
+	storeEncrypted="n"#str(input("Do you want to encrypt and store those credidentials for a quicker access ? (y/n): ")).lower()
 	if (storeEncrypted=='y' or storeEncrypted=='yes' or storeEncrypted is None or storeEncrypted==""):
 		goodPassword=False
 		hash_password1 = ""
@@ -38,7 +35,7 @@ else:
 		hash_password1+='0'*(16-len(hash_password1)%16)
 		encrypted_email = simplecrypt.encrypt(hash_password1, email)
 		encrypted_pass=simplecrypt.encrypt(hash_password1, password)
-		f=open("Credidentials","w");f.write(encrypted_email+'|..|'+encrypted_pass);f.close()
+		f=open("Credidentials","w");f.write(encrypted_email+b'|..|'+encrypted_pass);f.close()
 		print("Credidentials stored !")
 
 
@@ -162,8 +159,8 @@ def login():
 	r = sendRequest("https://chemistry.stackexchange.com/users/login-or-signup/validation/track","post",payload).text
 	logFile(r,"log_signin.html")
 	if r.find("Login-OK")<0:
-		error("Login to Chem-SE - FAIL")
-	log("Login to Chem-SE - OK")
+		error("Logging to Chem-SE - FAIL")
+	log("Logging to Chem-SE - OK")
 	
 	payload = {"email": email, "password": password, "ssrc":"head",
 			   "fkey": getField("fkey", "https://openid.stackexchange.com/account/login")}
@@ -175,9 +172,16 @@ def login():
 	
 	sendRequest("https://chemistry.stackexchange.com/users/login/universal/request","post")
 	
+	"""
 	sendRequest("http://stackexchange.com/users/chat-login", "post")
 	r = sendRequest("http://chat.stackexchange.com/chats/join/favorite", "get").text
 	setGlobalVars("masterFkey", getField("fkey", r=r))
+	log("Got master fkey : " + globalVars["masterFkey"])
+	log("Login to the SE chat successful")"""
+	
+	r = sendRequest("http://chat.chemistry.stackexchange.com/chats/join/favorite", "get").text
+	setGlobalVars("masterFkey", getField("fkey", r=r))
+	print(globalVars["masterFkey"])
 	log("Got master fkey : " + globalVars["masterFkey"])
 	log("Login to the SE chat successful")
 	
@@ -188,8 +192,11 @@ def login():
 
 def sendMessage(msg, roomId, noDelete=False):  # 10121 : test, 3229 : chemistry
 	roomId = str(roomId)
+	isMetaStr="meta." if globalVars["roomsJoined"][roomId]["meta"] else ""
 	payload = {"fkey": globalVars["masterFkey"], "text": msg}
-	r = sendRequest("http://chat.stackexchange.com/chats/" + roomId + "/messages/new", "post", payload)
+	r = sendRequest("http://chat."+isMetaStr+"stackexchange.com/chats/" + roomId + "/messages/new", "post", payload)
+	logFile(r)
+	print(msg,roomId)
 	if r.text.find("You can perform this action again") >= 0:
 		time.sleep(3)
 		sendMessage(msg, roomId)
@@ -207,9 +214,10 @@ def sendMessage(msg, roomId, noDelete=False):  # 10121 : test, 3229 : chemistry
 def editMessage(msg, id, roomId):
 	roomId = str(roomId)
 	id = str(id)
+	isMetaStr="meta." if globalVars["roomsJoined"][id]["meta"] else ""
 	payload = {"fkey": globalVars["masterFkey"], "text": msg}
-	headers = {'Referer': "http://chat.stackexchange.com/rooms/" + roomId}
-	r = sendRequest("http://chat.stackexchange.com/messages/" + id, "post", payload, headers).text
+	headers = {'Referer': "http://chat."+isMetaStr+"stackexchange.com/rooms/" + roomId}
+	r = sendRequest("http://chat."+isMetaStr+"stackexchange.com/messages/" + id, "post", payload, headers).text
 	if r.find("You can perform this action again") >= 0:
 		time.sleep(3)
 		editMessage(msg, id, roomId)
@@ -219,9 +227,10 @@ def deleteMessage(id, roomId, waitTime=0):
 	time.sleep(waitTime)
 	roomId = str(roomId)
 	id = str(id)
+	isMetaStr="meta." if globalVars["roomsJoined"][id]["meta"] else ""
 	payload = {"fkey": globalVars["masterFkey"]}
-	headers = {'Referer': "http://chat.stackexchange.com/rooms/" + roomId}
-	r = sendRequest("http://chat.stackexchange.com/messages/" + id + "/delete", "post", payload, headers).text
+	headers = {'Referer': "http://chat."+isMetaStr+"stackexchange.com/rooms/" + roomId}
+	r = sendRequest("http://chat."+isMetaStr+"stackexchange.com/messages/" + id + "/delete", "post", payload, headers).text
 	if r.find("You can perform this action again") >= 0:
 		time.sleep(3)
 		deleteMessage(id, roomId)
@@ -236,17 +245,20 @@ def joinRooms(roomsDict):
 		payload = {"fkey": globalVars["masterFkey"], 'since': 0, 'mode': 'Messages', 'msgCount': 100}
 		for key in roomsDict.keys():
 			roomId = str(key)
+			isMeta=roomId.find("m")>=0
+			isMetaStr="meta." if isMeta else ""
+			roomId=roomId.replace("m","")
 
 			# configure saved data
 			for name in [roomId, roomId + '//temp', roomId + '//savedData']:
 				if not os.path.exists(name):
 					os.makedirs(name)
 
-			r = sendRequest("http://chat.stackexchange.com/chats/" + roomId + "/events", "post", payload).json()
+			r = sendRequest("http://chat."+isMetaStr+"stackexchange.com/chats/" + roomId + "/events", "post", payload).json()
 			t = globalVars["roomsJoined"]
 			t[roomId] = {"eventtime": r['time']}
 
-			r = sendRequest("http://chat.stackexchange.com/rooms/info/" + roomId, "post", payload).text  # get room info
+			r = sendRequest("http://chat."+isMetaStr+"stackexchange.com/rooms/info/" + roomId, "post", payload).text  # get room info
 			roomName, roomNetworkUrl = "",""
 			try:
 				p = r.find("cdn-chat.sstatic.net/chat/css/chat.")+len("cdn-chat.sstatic.net/chat/css/chat.")
@@ -256,6 +268,7 @@ def joinRooms(roomsDict):
 			except Exception:
 				log("Failed to scrape metadata for room : " + roomId)
 			t[roomId]["roomName"] = roomName
+			t[roomId]["meta"] = isMeta
 			t[roomId]["roomNetworkUrl"] = roomNetworkUrl
 			t[roomId]["usersGreeted"] = []
 
@@ -268,7 +281,7 @@ def joinRooms(roomsDict):
 					roomId = key
 					lastTime = room["eventtime"]
 					payload = {"fkey": globalVars["masterFkey"], 'r' + roomId: lastTime}
-					activity = sendRequest("http://chat.stackexchange.com/events", "post", payload).json()
+					activity = sendRequest("http://chat."+isMetaStr+"stackexchange.com/events", "post", payload).json()
 					roomResult = {}
 					try:  # update eventtime
 						roomResult = activity['r' + roomId]
@@ -297,7 +310,7 @@ def enableControl(roomId):
 			time.sleep(1)
 		roomName=globalVars["roomsJoined"][roomId]["roomName"]
 		while True:
-			msg=str(raw_input(roomName + ' ('+roomId+') > '))
+			msg=str(input(roomName + ' ('+roomId+') > '))
 			try:
 				sendMessage(msg,roomId)
 			except Exception as e:
