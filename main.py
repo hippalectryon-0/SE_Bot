@@ -2,17 +2,12 @@
 import chatbot, random, shutil, time, urllib, sys, upsidedown, threading
 from PIL import Image
 from imgurpython import ImgurClient
-import  numpy as np
-from HTMLParser import HTMLParser
-
+from html.parser import HTMLParser
 HTMLparser = HTMLParser()
 
 client_id = 'fb1b922cb86bb0f'  # Imgur module setup
 client_secret = 'cffaf5da440289a8923f9be60c22b26e25675d3d'
-clientImg = ImgurClient(client_id, client_secret)
-
-reload(sys)
-sys.setdefaultencoding('utf8')
+#clientImg = ImgurClient(client_id, client_secret)
 
 # Initialization
 
@@ -394,8 +389,7 @@ def handleMessages(message):
 				chatbot.log("Error : " + str(e))
 
 
-chatbot.joinRooms({"25323": handleActivity, "3229": handleActivity, "26060": handleActivity, "38172": handleActivity,
-				   "1": handleActivity})  # 10121 : test, 3229 : chemistry, 26060 : g-block, 38172 : chemobot, 1: sandbox
+chatbot.joinRooms({"1": handleActivity,"1098m": handleActivity})  # 3229 : chemistry, 26060 : g-block, 1: sandbox
 
-chatbot.enableControl(3229)
+chatbot.enableControl("1098m")
 
