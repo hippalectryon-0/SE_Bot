@@ -191,12 +191,11 @@ def login():
 # Chat Functions
 
 def sendMessage(msg, roomId, noDelete=False):  # 10121 : test, 3229 : chemistry
-	roomId = str(roomId)
+	roomId = str(roomId).replace("m","")
 	isMetaStr="meta." if globalVars["roomsJoined"][roomId]["meta"] else ""
 	payload = {"fkey": globalVars["masterFkey"], "text": msg}
 	r = sendRequest("http://chat."+isMetaStr+"stackexchange.com/chats/" + roomId + "/messages/new", "post", payload)
 	logFile(r)
-	print(msg,roomId)
 	if r.text.find("You can perform this action again") >= 0:
 		time.sleep(3)
 		sendMessage(msg, roomId)
@@ -212,9 +211,9 @@ def sendMessage(msg, roomId, noDelete=False):  # 10121 : test, 3229 : chemistry
 
 
 def editMessage(msg, id, roomId):
-	roomId = str(roomId)
+	roomId = str(roomId).replace("m","")
 	id = str(id)
-	isMetaStr="meta." if globalVars["roomsJoined"][id]["meta"] else ""
+	isMetaStr="meta." if globalVars["roomsJoined"][roomId]["meta"] else ""
 	payload = {"fkey": globalVars["masterFkey"], "text": msg}
 	headers = {'Referer': "http://chat."+isMetaStr+"stackexchange.com/rooms/" + roomId}
 	r = sendRequest("http://chat."+isMetaStr+"stackexchange.com/messages/" + id, "post", payload, headers).text
@@ -225,8 +224,7 @@ def editMessage(msg, id, roomId):
 
 def deleteMessage(id, roomId, waitTime=0):
 	time.sleep(waitTime)
-	roomId = str(roomId)
-	id = str(id)
+	roomId = str(roomId).replace("m","")
 	isMetaStr="meta." if globalVars["roomsJoined"][id]["meta"] else ""
 	payload = {"fkey": globalVars["masterFkey"]}
 	headers = {'Referer': "http://chat."+isMetaStr+"stackexchange.com/rooms/" + roomId}
@@ -247,18 +245,18 @@ def joinRooms(roomsDict):
 			roomId = str(key)
 			isMeta=roomId.find("m")>=0
 			isMetaStr="meta." if isMeta else ""
-			roomId=roomId.replace("m","")
+			realId=roomId.replace("m","")
 
 			# configure saved data
 			for name in [roomId, roomId + '//temp', roomId + '//savedData']:
 				if not os.path.exists(name):
 					os.makedirs(name)
 
-			r = sendRequest("http://chat."+isMetaStr+"stackexchange.com/chats/" + roomId + "/events", "post", payload).json()
+			r = sendRequest("http://chat."+isMetaStr+"stackexchange.com/chats/" + realId + "/events", "post", payload).json()
 			t = globalVars["roomsJoined"]
 			t[roomId] = {"eventtime": r['time']}
 
-			r = sendRequest("http://chat."+isMetaStr+"stackexchange.com/rooms/info/" + roomId, "post", payload).text  # get room info
+			r = sendRequest("http://chat."+isMetaStr+"stackexchange.com/rooms/info/" + realId, "post", payload).text  # get room info
 			roomName, roomNetworkUrl = "",""
 			try:
 				p = r.find("cdn-chat.sstatic.net/chat/css/chat.")+len("cdn-chat.sstatic.net/chat/css/chat.")
@@ -278,7 +276,7 @@ def joinRooms(roomsDict):
 			for key in globalVars["roomsJoined"]:
 				try:
 					room = globalVars["roomsJoined"][key]
-					roomId = key
+					roomId = key.replace("m","")
 					isMetaStr="meta." if room["meta"] else ""
 					lastTime = room["eventtime"]
 					payload = {"fkey": globalVars["masterFkey"], 'r' + roomId: lastTime}
@@ -292,7 +290,7 @@ def joinRooms(roomsDict):
 						setGlobalVars("roomsJoined", t)
 					except KeyError as ex:
 						pass
-					activityHandler = roomsDict[key+("m" if room["meta"] else "")]
+					activityHandler = roomsDict[key]
 					try:
 						activityHandler(roomResult)  # send activity to designated function
 					except Exception as e:
@@ -354,19 +352,4 @@ def getNetworkQuestions(roomId,minVotes,maxNumber=200):
 	setSavedData("questions_interesting_"+str(minVotes),questionsTable,roomId)
 	log("Got "+str(i)+" questions above "+str(minVotes)+" in "+str(page)+" pages from "+topUrl)
 	return questionsTable
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
