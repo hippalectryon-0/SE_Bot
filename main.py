@@ -1,394 +1,369 @@
 # -*- coding: utf-8 -*-
-import chatbot, random, shutil, time, urllib, sys, upsidedown, threading
-from PIL import Image
-from imgurpython import ImgurClient
-from html.parser import HTMLParser
-HTMLparser = HTMLParser()
+# Imports and initialization
+import requests, codecs, time, json, getpass, threading, os, linecache, sys, simplecrypt
 
-client_id = 'fb1b922cb86bb0f'  # Imgur module setup
-client_secret = 'cffaf5da440289a8923f9be60c22b26e25675d3d'
-#clientImg = ImgurClient(client_id, client_secret)
+# os.chdir("C:/Users/Hippa/PycharmProjects/CSE_chatbot")  # Change to script's directory. Will store images and logs here.
 
-# Initialization
+if os.path.isfile("Credidentials"):
+	goodPassword=False
+	while not goodPassword:
+		hash_password = getpass.getpass("Password for the encrypted credidentials ? ")
+		hash_password += '0' * (16-len(hash_password) % 16)
+		f=open("Credidentials","rb");string=f.read();f.close()
+		encrypted_email=string[:string.find(b'|..|')]
+		encrypted_password = string[string.find(b'|..|')+len(b'|..|'):]
+		try:
+			email=simplecrypt.decrypt(hash_password,encrypted_email)
+			password=simplecrypt.decrypt(hash_password,encrypted_password)
+			goodPassword=True
+		except Exception as e:
+			print('Bad password / corrupted file, try again.')
+else:
+	email = str(input(("Email ? ")))  # SE email and username. Don't leave them as plain text.
+	password = getpass.getpass("Password ? ")
+	storeEncrypted="n"#str(input("Do you want to encrypt and store those credidentials for a quicker access ? (y/n): ")).lower()
+	if (storeEncrypted=='y' or storeEncrypted=='yes' or storeEncrypted is None or storeEncrypted==""):
+		goodPassword=False
+		hash_password1 = ""
+		while not goodPassword:
+			hash_password1 = getpass.getpass("Input a password to decrypt the credidentials : ")
+			hash_password2 = getpass.getpass("Confirmation - re-enter the password : ")
+			if hash_password1==hash_password2:
+				goodPassword=True
+			else:
+				print("The password do not match, try again.")
+		hash_password1+='0'*(16-len(hash_password1)%16)
+		encrypted_email = simplecrypt.encrypt(hash_password1, email)
+		encrypted_pass=simplecrypt.encrypt(hash_password1, password)
+		f=open("Credidentials","w");f.write(encrypted_email+b'|..|'+encrypted_pass);f.close()
+		print("Credidentials stored !")
 
-session = chatbot.login()
 
 
-# Utility
 
-def removeUselessSpace(name, path=''):
-	image = Image.open(path + name)
+session = requests.Session()  # main session for POST/GET requests
 
-	image=image.crop(image.getbbox())
-
-	image.save(path + 'cropped_' + name)
-
-
-#
-
-
-coolTables = {
-	"tablesList": ["(╯°□°）╯︵ ┻━┻", "(ノಠ益ಠ)ノ彡┻━┻", "ʕノ•ᴥ•ʔノ ︵ ┻━┻", "(/¯◡ ‿ ◡)/¯ ~ ┻━┻", "(ノ-_-)ノ ~┻━┻", "(ﾉ；；)ﾉ~┻━┻",
-				   "(ﾉ-_-)ﾉ ~┻━┻ ☆`", "(ノ-_-)ノ・・・~~┻━┻", "(ノ-_-)ノ~┻━┻", "ノ￣□￣)ノ ~┻━┻", "(ﾉꐦ ⊙曲ఠ)ﾉ彡┻━┻", "(ﾉ｀□´)ﾉ⌒┻━┻",
-				   "(ﾉꐦ ๑´Д`๑)ﾉ彡┻━┻", "┻━┻ミ＼（≧ロ≦＼）", "(ﾉ￣□￣)ﾉ ~┻━┻", "（ノ♯｀△´）ノ~’┻━┻", "（ノT＿T)ノ ＾┻━┻", "(┛ಠДಠ)┛彡┻━┻",
-				   "(ノ°▽°)ノ︵┻━┻", "(ﾉ*’ω’*)ﾉ彡┻━┻", "‎(ﾉಥ益ಥ）ﾉ ┻━┻", "(╯’□’)╯︵ ┻━┻", "(ﾉಥДಥ)ﾉ︵┻━┻･/", "(._.) ~ ︵ ┻━┻",
-				   "┗[© ♒ ©]┛ ︵ ┻━┻", "┻━┻ ︵ ლ(⌒-⌒ლ)", "(ﾉ＾◡＾)ﾉ︵ ┻━┻", "༼ ᕤ ºل͟º ༽ᕤ ︵┻━┻", "ヽ༼ ツ ༽ﾉ ︵┻━┻",
-				   "༼ ͠ຈ ͟ل͜ ͠ຈ༽ง︵┻━┻", "ヽ༼ຈل͜ຈ༽ﾉ︵┻━┻", "(╯ຈل͜ຈ) ╯︵ ┻━┻", "༼ノಠل͟ಠ༽ノ ︵ ┻━┻", "༼ﾉຈل͜ຈ༽ﾉ︵┻━┻",
-				   "(╯ ͝° ͜ʖ͡°)╯︵ ┻━┻", "(つ☢益☢)つ︵┻━┻", "ヽ༼ຈل͜ຈ༽ﾉ︵ ┻━┻", "(┛◉Д◉)┛彡┻━┻", "(ﾉ≧∇≦)ﾉ ﾐ ┸━┸", "┻━┻ミ＼(≧ﾛ≦＼)",
-				   "(ノ｀´)ノ ~┻━┻ ～", "ʕ ⊃･ ◡ ･ ʔ⊃︵┻━┻", "(ﾉ▼д▼)ﾉ ~┻━┻ ☆`", "(┛❍ᴥ❍)┛彡┻━┻", "(ʘ∇ʘ)ク 彡 ┻━┻",
-				   "┻━┻ ︵ ლ(ಠ益ಠლ)", "(╯ಠ_ರೃ)╯︵ ┻━┻", "/(ò.ó)┛彡┻━┻", "(╯=▃=)╯︵┻━┻", "(ノ｀ー´)ノ・・・~~┻━┻", "(ﾉ｀◇´)ﾉ~┻━┻",
-				   "┻━┻ ヘ╰( •̀ε•́ ╰)", "(ノ｀Д´)ノ~┻━┻", "(ﾉ｀△´)ﾉ~┻━┻", "(⑅ノ-_-)ノ~┻━┻	", "(╯ ･ ᗜ ･ )╯︵ ┻━┻  ",
-				   "(ノ ﾟДﾟ)ノ　＝＝＝＝　┻━━┻", "!!!!|┛*｀Д´|┛・・~~┻━┻　┳━┳", "(/#-_-)/~┻┻〃", "(/ToT)/ ~┻┻", "（ノ－＿－）ノ･･･~┻┻	",
-				   "(ﾉ*’‐’)ﾉ ﾐ ┸┸", "(ノ#-_-)ノ ミ　┴┴", "（ノ｀_´）ﾉ~~┴┴", "(ノ｀´）ノミ┻┻", "ノToT)ノ ~┻┻", "(ﾉ｀Д)ﾉ:・’∵:.┻┻",
-				   "(ﾉToT)ﾉ ﾐ ┸┸", "(メ–)ノノ。。。┻┻", "(ﾉ≧∇≦)ﾉ ﾐ ┸┸", "(ノToT)ノ ~┻┻", "┳┳ヾ(T(エ)Tヽ)",
-				   "(ﾉTwT)ﾉ ┫:･’.::･┻┻:･’.::･", "(ノ͡° ͜ʖ ͡°)ノ︵┻┻  ", "（ノ－＿－）ノ・・・~~~┻┻", "(ノ；o；)ノ ┫:･’.::･┻┻:･’.::･",
-				   "(ノ；ω；)ノ ┫:･’.::･┻┻:･’.::･", "(ノToT)ノ ┫:・’.::・┻┻:・’.::・", "(ノTДT)ノ ┫:･’.::･┻┻:･’.::･",
-				   "(ノToT)ノ　┫：･’.::･┻┻:･’.::･", "（ﾉ｀Д´）ﾉ－－－－－┻┻　-３-３", "（ノ￣＾￣）ノ　┳┳　┣　┻┻　┫　┳┳",
-				   "(ﾉ´□｀)ﾉ ┫:･’∵:.┻┻:･’.:┣∵･:. ┳┳", "(ノ｀０)ノ ⌒┫：・’.：：・┻┻：・’.：：・", "(ﾉ｀⌒´)ﾉ ┫：・’.：：・┻┻：・’.：：・",
-				   "(ノ｀⌒´)ノ ┫：・’.：：・┻┻：・’.：：・", "( ｀o)ﾉﾉ ┫", "( ﾉo|o)ﾉ ┫｡ﾟ:.:", "（；－－）ノノ ┫：・゜’", "(/-o-)/ ⌒ ┤",
-				   "(/｀ο´)/ ⌒ ┫:’ﾟ:｡･,. 。゜", "(/ToT)/_┫・..", "(ノ－＿－）ノ　┫〝〟∵", "(ノ-0-)ノ　┫∵：．", "(ﾉ-ｏ-)ﾉ ~┫：・’.：：・",
-				   "(ノ-o-)ノ⌒┳ ┫┻┣", "(ノ￣＿￣）ノ　┫〝〟∵", "(丿>ロ<)丿 ┤∵:.", "（ノ￣ー￣）ノ　┫：・’.::", "(ノ￣ー￣）ノ　┫〝〟∵",
-				   "(ﾉ＝ﾟﾛﾟ)ﾉ ⌒┫:･’.::", "(ノ＞o＜)ノ ┫:･’.::", "（ノ≧∇≦）ノ　┫　゜・∵。", "（ノ≧ο≦）ノ　┫　゜・∵。", "（ノ○Д○）ノ＝＝＝┠",
-				   "（ノー”ー）ノ　┫　゜・∵。", "(ノToT)ノ ┫:・’.::・", "((((ﾉ｀皿´)ﾉ ⌒┫:･┫┻┠’.", "(ﾉ*｀▽´*)ﾉ ⌒┫ ┻ ┣ ┳", "(ノ￣皿￣）ノ ⌒=== ┫",
-				   "･.:ﾟ｡┣＼(’ﾛ´＼)", "(ﾉ#▼o▼)ﾉ ┫:･’.::･", "┣¨┣¨┣¨ヾ(゜Д゜ )ノ┣¨┣¨┣", "┣¨ ୧(๑ ⁼̴̀ᐜ⁼̴́๑)૭",
-				   "((|||||┝＼(｀д´)／┥|||||))", "┝＼( ‘∇^*)^☆／┥  ", "(ﾉﾟ∀ﾟ)ﾉ ┫:｡･:*:･ﾟ’★,｡･:*:♪･ﾟ’☆━━━!!!!",
-				   "┻━┻ ︵ ¯\\\ (ツ)/¯ ︵ ┻━┻", "┻━┻ ︵ヽ(`Д´)ﾉ︵ ┻━┻", "┻━┻ ︵ヽ(`Д´)ﾉ︵ ┻━┻", "┻━┻ ︵ ¯\\\(ツ)/¯ ︵ ┻━┻",
-				   "┫┻┠⌒ヾ(-_-ヾ 三 ﾉ-_-)ﾉ⌒┫:･┫┻", "（/＞□＜）/亠亠", "(ノ￣＿￣)ノ＼。:・゛。", "(ノÒ益Ó)ノ彡▔▔▏", "_|___|_ ╰(º o º╰)  ",
-				   "(ノ￣￣∇￣￣)ノ~~~~~⌒━━┻━━┻━━", "⊂(ﾉ￣￣￣(工)￣￣￣)⊃ﾉ~~~~~━━━┻━━┻━━━", "(ノ-o-)ノ┸┸)`3゜)・;’.",
-				   "(ノ-。-）ノ┻━┻☆(　　^)", "(ノ-_-)ノ ~┻━┻ (/o＼)", "(ノ#-◇-)ノ ~~~~┻━┻☆(x _ x)ノ", "(ノ｀０)ノ ⌒┫ ┻ ┣ ┳☆(x x)",
-				   "(ノ｀m´)ノ ~┻━┻ (/o＼)", "(ﾉ`Д´)ﾉ.:･┻┻)｀з゜)･:ﾞ;	", "(ノ￣▽￣)ノ┻━┻☆)*￣□)ノ))", "(ノ￣◇￣)ノ~┻━┻/(×。×)",
-				   "(ﾉToT)ﾉ ┫:･’.::･＼┻┻(･_＼)", "(╯°□°)╯︵ ┻━┻ ︵ ╯(°□° ╯)", "(ノ^_^)ノ┻━┻ ┬─┬ ノ( ^_^ノ)", "ﾐ┻┻(ﾉ>｡<)ﾉ",
-				   ".::･┻┻☆()ﾟOﾟ)", "(ﾉ｀A”)ﾉ ⌒┫ ┻ ┣ ┳☆(x x)", "(ノ｀m´)ノ ~┻━┻ (/o＼)", "⌒┫ ┻ ┣ ⌒┻☆)ﾟ⊿ﾟ)ﾉ",
-				   "(ﾉ≧∇≦)ﾉ ﾐ ┸┸)`νﾟ)･;’.", "(ﾉToT)ﾉ ┫:･’.::･＼┻┻(･_＼)", "（ノ－ｏ－）ノ　”″┻━┻☆（>○<）",
-				   "ミ(ノ￣^￣)ノ!≡≡≡≡≡━┳━☆()￣□￣)/", "（メ｀д´）┫～┻┻ ～┣～┳┳　　（。@ﾍ@。川", "ミ(ノ￣^￣)ノ≡≡≡≡≡━┳━☆()￣□￣)/",
-				   "(╯°Д°）╯︵/(.□ . )", "(ノಠ ∩ಠ)ノ彡( o°o)", "/( .□.) ︵╰(゜益゜)╯︵ /(.□. /)",
-				   "≡/( .-.)\\\ ︵╰(«○»益«○»)╯︵ /(.□. /)̨", "(/ .□.)\\\ ︵╰(゜Д゜)╯︵ /(.□. \\\)", "（╯°□°）╯︵( .o.)",
-				   "(╯°□°）╯︵ (\\\ . 0 .)(/￣(ｴ)￣)/ ⌒ ○┼<", "(╯°□°）╯︵ /( ‿⌓‿ )ノ┬─┬ノ ︵ ( o°o)", "┬─┬ ︵ /(.□. \\\）",
-				   "┬──┬╯︵ /(.□. \\\）", "┬──┬ ︵(╯。□。）╯", "ヘ(´° □°)ヘ┳━┳", "(╯°□°)╯︵ ʞooqǝɔɐℲ", "(╯°□°)╯︵ ɹǝʇʇıʍ⊥",
-				   "(∿°○°)∿ ︵ ǝʌol", "(╯°□°)╯︵ ɯsıɥdɹoɯouǝʞs", "(╯°□°)╯︵ sɯɐxǝ", "(╯°□°)╯︵ ƃuıʎpnʇs", "(╯°□°)╯︵ ʞɹoʍ",
-				   "(੭ ◕㉨◕)੭ =͟͟͞͞=͟͟͞͞三❆)’дº);,’:=͟͟͞͞", "(ﾉꐦ ◎曲◎)ﾉ=͟͟͞͞ ⌨", "(っ ºДº)っ ︵ ⌨", "(╯^□^)╯︵ ❄☃❄",
-				   "(╯ `Д ́)╯︵ (฿)", "♡╰(*ﾟxﾟ​*)╯♡", "˭̡̞(◞⁎˃ᆺ˂)◞₎₎=͟͟͞͞✉", "(۶ૈ ۜ ᵒ̌▱๋ᵒ̌ )۶ૈ=͟͟͞͞ ⌨`ワ°)・;’.",
-				   "╰( ^o^)╮-=ﾆ=一＝三", "（ノ>_<）ノ　≡●", "●~*⌒ ヽ(´ｰ｀ )", "!!(⊃ Д)⊃≡ﾟ ﾟ", "(╬☉д⊙)＝◯)๏д๏))･;’.",
-				   "(ര̀⍨ര́)و ̑̑༉ լਕ ̏੭ჯ ૅੁ~ɭ ɿ❢❢", "˭̡̞(◞⁎˃ᆺ˂)◞₎₎=͟͟͞͞˳˚॰°ₒ৹๐", "૮(ꂧ᷆⺫ꂧ᷇)ა=͟͟͞͞ꊞ",
-				   "ヽ［・∀・］ﾉ(((((((((●～*", "ﾍ|･∀･|ﾉ*~●", "(*ﾉﾟ▽ﾟ)ﾉ ⌒((((●", "(╯°□°）╯︵ ส็็็็็็็ส", "⌨ █▬▬◟(`ﮧ´ ◟ )",
-				   "○三　＼(￣^￣＼）", ",,,,,,,,((*￣(ｴ)￣)ﾉ ⌒☆ o*＿(x)_)", "(۶ૈ‡▼益▼)۶ૈ=͟͟͞͞ ⌨", "(ノω・)ノ⌒゛◆",
-				   "(۶ૈ ۜ ᵒ̌▱๋ᵒ̌ )۶ૈ=͟͟͞͞ ⌨", "(۶ૈ ᵒ̌ Дᵒ̌)۶ૈ=͟͟͞͞ ⌨", "☆(ﾉ^o^)ﾉ‥‥‥…━━━━〇(^~^)",
-				   "( つ•̀ω•́)つ・・*:・:・゜:==≡≡Σ=͟͟͞͞(✡)`Д´）"],
-	"flipsList": ["( つ•̀ω•́)つ","(∿°○°)∿","(۶ૈ‡▼益▼)۶", "◟(`ﮧ´ ◟ )","(╯°ਊ°)╯︵", "(づಥਊಥ)づ︵", "(づ๑ʖ๑)┛︵"],
-	"doubleflipsList": ["╰(*ﾟxﾟ​*)╯","＼(｀д´)／","︵╰(゜益゜)╯︵ ","╰(«○»益«○»)╯","︵╰(゜Д゜)╯︵"],
-	"untablesList": ["┬─┬ ノ( ^_^ノ)", "┬──┬◡ﾉ(° -°ﾉ)", "┬━┬ ノ( ゜¸゜ノ)", "┬━┬ ノ( ゜-゜ノ)", "┳━┳ ヽ༼ಠل͜ಠ༽ﾉ",
-					 "┬──┬ ¯\\\_(ツ)",
-					 "┬──┬ ノ( ゜-゜ノ)", "(ヘ･_･)ヘ┳━┳", "┻o(Ｔ＿Ｔ )ミ( ；＿；)o┯", "┣ﾍ(≧∇≦ﾍ)… (≧∇≦)/┳━┳",
-					 "┣ﾍ(^▽^ﾍ)Ξ(ﾟ▽ﾟ*)ﾉ┳━┳",
-					 ],
-	"iceCreamList": [
-		"http://www.daytonaradio.com/wkro/wp-content/uploads/sites/4/2015/07/ice-cream.jpg"],
-	"sushiList": [
-		"http://www.shopbelmontmarket.com/wp-content/uploads/page_img_sushi_01.jpg",
-		"http://www.jim.fr/e-docs/00/02/66/5C/carac_photo_1.jpg"],
-	"cakeList": [
-		"https://s-media-cache-ak0.pinimg.com/736x/d7/e8/29/d7e8295cc27143127d735bdaaa9fa314.jpg",
-		"http://cdn001.cakecentral.com/gallery/2015/03/900_804210qttE_chemistry-cake.jpg",
-		"https://s-media-cache-ak0.pinimg.com/originals/de/a7/7e/dea77e272ff71bee9925890163bfe82e.jpg",
-		],
-	"gunsList": ["(҂‾ ▵‾)︻デ═一 (˚▽˚’!)/",
-				 "̿’ ̿’\\\̵͇̿̿\\\з=(ಥДಥ)=ε/̵͇̿̿/’̿’̿",
-				 "( う-´)づ︻╦̵̵̿╤── \\\(˚☐˚”)/",
-				 "(⌐■_■)–︻╦╤─",
-				 "̿̿ ̿̿ ̿’̿’̵͇̿̿з=༼ ▀̿̿Ĺ̯̿̿▀̿ ̿ ༽	",
-				 "━╤デ╦︻(▀̿̿Ĺ̯̿̿▀̿ ̿)",
-				 "╾━╤デ╦︻	▄︻̷̿┻̿═━一", "︻╦̵̵͇̿̿̿̿══╤─",
-				 "༼ ಠل͟ಠ༽ ̿ ̿ ̿ ̿’̿’̵з=༼ຈل͜ຈ༽ﾉ",
-				 "̿’ ̿’\\\̵͇̿̿\\\з=(ಡل͟ಡ)=ε/̵͇̿̿/’̿’̿",
-				 "￢o(￣-￣ﾒ)", "(҂`з´).っ︻デ═一",
-				 "ᕕ╏ ͡ᵔ ‸ ͡ᵔ ╏و︻̷┻̿═━一", "⌐╦╦═─",
-				 "(ﾟ皿ﾟ)ｒ┏┳－－－＊",
-				 "・-/(。□。;/)—-┳┓y(-_・ )", "(ﾒ▼▼)┏)ﾟoﾟ)",
-				 "[ﾉಠೃಠ]︻̷┻̿═━一", "……┳┓o(▼▼ｷ)",
-				 "(ｷ▼▼)o┏┳……", "(ﾒ▼皿▼)┳*–",
-				 "̿̿’̿’\\\̵͇̿̿\\\=(•̪●)=/̵͇̿̿/’̿̿ ̿ ̿ ̿",
-				 "】ﾟДﾟ)┳—-ﾟ~:;’:;ω*:;’;—-",
-				 "ξ(✿ ❛‿❛)ξ▄︻┻┳═一	",
-				 "⁞ つ: •̀ ⌂ •́ : ⁞-︻╦̵̵͇̿̿̿̿══╤─",
-				 "╾━╤デ╦︻ԅ། ･ิ _ʖ ･ิ །ง",
-				 "……┳┓o(-｀Д´-ﾒ )",
-				 "┌( ͝° ͜ʖ͡°)=ε/̵͇̿̿/’̿’̿ ̿ └། ๑ _ ๑ །┘",
-				 "(‥)←￢~(▼▼#)~~",
-				 "(ง⌐□ل͜□)︻̷┻̿═━一",
-				 "‘̿’\\\̵͇̿̿\\\=( `◟ 、)=/̵͇̿̿/’̿̿ ̿",
-				 "༼ ºل͟º ༽ ̿ ̿ ̿ ̿’̿’̵з=༼ ▀̿Ĺ̯▀̿ ̿ ༽",
-				 "(キ▼▼)＿┏┳……",
-				 "( ͝ಠ ʖ ಠ)=ε/̵͇̿̿/’̿’̿ ̿",
-				 "ლ(~•̀︿•́~)つ︻̷┻̿═━一",
-				 "(ง ͠° / ^ \\\ °)-/̵͇̿̿/’̿’̿ ̿",
-				 "(‘ºل͟º)ノ⌒. ̿̿ ̿̿ ̿’̿’̵͇̿̿з=༼ ▀̿̿Ĺ̯̿̿▀̿ ̿ ༽",
-				 "(▀̿̿Ĺ̯̿̿▀̿ ̿)•︻̷̿┻̿┻═━━ヽ༼ຈ益ຈ༽ﾉ",
-				 "ー═┻┳︻▄ξ(✿ ❛‿❛)ξ▄︻┻┳═一",
-				 "ﾍ(ToTﾍ)))　・　—　　ε￢(▼▼メ)凸",
-				 "( ﾒ▼Д▼)┏☆====(((＿◇＿)======⊃",
-				 "!! ( ﾒ▼Д▼)┏☆====(((＿◇＿)======⊃",
-				 "!!(★▼▼)o┳*—————–●));´ﾛ`))",
-				 "!! ﾍ(ToTﾍ)))　・　—　　ε￢(▼▼メ)凸",
-				 "ヽ༼ຈ益ຈ༽_•︻̷̿┻̿═━一|<——— ҉ Ĺ̯̿̿▀̿ ̿)",
-				 "ヽ༼xل͜x༽ﾉ <===== ̿’ ̿’\\\̵͇̿̿\\\з༼ຈل͜ຈ༽ ε/̵͇̿̿/’̿’̿ =====> ヽ༼xل͜x༽ﾉ",
-				 "ლ[☉︿۝)७)७︻̷┻̿═━一︻̷┻̿═━一",
-				 "( φ_<)r┬ ━━━━━━…=>"],
-	"owners": ["113953", "135450", "24986","117922","128263"]
+# Variables
+globalVars = {
+	"roomsJoined": {},  # List of rooms joined : {roomId1:timestamp1,roomId2:timestamp2}
 }
 
 
-def handleActivity(activity):
-	# log("ping", "activity.txt", verbose=False)
-	if "e" in activity:
-		for item in activity["e"]:
-			if item["user_id"] == 200207:  # bot's user
-				continue
-			# 1: message, 2: edit, 3: user enters, 4: user leaves
-			if item['event_type'] == 1:  # message posted
-				handleMessages(item)
+def setGlobalVars(field, value):
+	global globalsVars
+	globalVars[field] = value
 
-dailyQuestionThread=None
-def sendDailyQuestion(roomId):
-	currentDailyQuestionThread=dailyQuestionThread
-	while currentDailyQuestionThread==dailyQuestionThread: # send daily random network question
-		questions=chatbot.getSavedData("questions_interesting_10",roomId)
-		if questions is False:
-			questions=chatbot.getNetworkQuestions(roomId,10,1000)
-		chatbot.sendMessage(random.choice(questions),roomId)
-		time.sleep(3600*24)
 
-def handleMessages(message):
-	global dailyQuestionThread
-	Mcontent = HTMLparser.unescape(message["content"].replace('<div>', '').replace('</div>', '').replace( #encode("utf-8").
-		"<div class='full'>", ''))
-	MuserName = message['user_name']
-	MchatRoom = message['room_name']
-	MroomId = str(message['room_id'])  # int
-	noDelete = Mcontent.find('!!!') >= 0
-	tempDataPath = MroomId + '//temp//'
-	chatbot.log(MuserName + ' : ' + Mcontent, name=MroomId + '//log.txt', verbose=False)
-	print(MchatRoom + " | " + MuserName + ' : ' + Mcontent)
-	if  Mcontent.find('!!')>0 and random.randint(1, 1000) == 133:
-		chatbot.sendMessage(u"__🎺🎺🎺 AND HIS NAME IS JOHN CENA 🎺🎺🎺__", MroomId)
-	Mcontent, McontentCase = Mcontent.lower(), Mcontent
-	if Mcontent.find('!!img/') >= 0:
-		id = chatbot.sendMessage(
-			"Hold tight, I'm processing your request ... " + random.choice(coolTables["tablesList"]), MroomId,
-			noDelete=noDelete)
-		molec = McontentCase[Mcontent.find('img/') + len('img/'):].replace(' ', '%20').replace('</div>', '').replace(
-			'\n', '').replace('&#39;', "'")
-		reqUrl = "http://www.chemspider.com/Search.aspx?q=" + molec
-		answ = session.get(reqUrl).text
-		pos=answ.find('<a href="/Chemical-Structure.')
-		if answ.find('Found 0 results')>=0 and pos<0:
-			chatbot.editMessage("No result found.", id, MroomId)
-			return
-		molecId=0
-		if answ.find('<span>Names and Synonyms</span>')<0:
-			molecId=answ[pos+len('<a href="/Chemical-Structure.'):answ.find('.',pos+len('<a href="/Chemical-Structure.')+1)]
-		else:
-			pos=answ.find('ChemSpider ID</span>')
-			molecId=answ[pos+len('ChemSpider ID</span>'):answ.find('</li>',pos)]
+# Utility
+def getException():
+	exc_type, exc_obj, tb = sys.exc_info()
+	f = tb.tb_frame
+	lineno = tb.tb_lineno
+	filename = f.f_code.co_filename
+	linecache.checkcache(filename)
+	line = linecache.getline(filename, lineno, f.f_globals)
+	return 'EXCEPTION IN ({}, LINE {} "{}"): {}'.format(filename, lineno, line.strip(), exc_obj)
 
-		imgUrl='http://www.chemspider.com/ImagesHandler.ashx?id='+molecId+'&w=150&h=150'
-		print(imgUrl)
-		molecImg = session.get(imgUrl, stream=True)
 
-		with open(tempDataPath + 'mol.gif', 'wb') as out_file:
-			shutil.copyfileobj(molecImg.raw, out_file)
+def logFile(r,
+			name="logFile.html"):  # logs the string in the file <name>. Will overwrite previous data. Will be improved later on.
+	with codecs.open(name, "w", encoding="utf-8") as f:
+		f.write(str(r))
+
+
+def log(r, name="log.txt", verbose=True):  # Appends <r> to the log <name> and prints it.
+	r = str(r)
+	with codecs.open(name, "a", encoding="utf-8") as f:
+		timeStr = str(time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(time.time())))
+		f.write(timeStr + ' ' + r + '\n')
+		if verbose: print('<Log> ' + r)
+
+
+def error(msg="", logFileStr=""):  # Prints the error *and breaks the script !!* Will be improved later on.
+	log('ERROR : ' + msg)
+	if logFileStr != "":
+		logFile(logFileStr)
+	sys.exit()
+
+
+def sendRequest(url, typeR="get", payload={}, headers={},verify=True):
+	r = ""
+	successful, tries = False, 0
+	while successful == False:
 		try:
-			Image.open(tempDataPath + 'mol.gif').save(tempDataPath + 'mol.png')
+			if typeR == "get":
+				r = session.get(url, data=payload, headers=headers, verify=verify)
+			elif typeR == "post":
+				r = session.post(url, data=payload, headers=headers, verify=verify)
+			else:
+				error("Invalid request type :" + str(typeR))
+			successful = True
 		except Exception as e:
-			chatbot.editMessage("<An error occured : " + str(e) + ". Check your molecule's name.>", id, MroomId)
-			return
-		del molecImg
-		removeUselessSpace('mol.png', tempDataPath)
-		ans = ""
-		try:
-			ans = clientImg.upload_from_path(tempDataPath + 'cropped_mol.png')
-		except Exception as e:
-			chatbot.editMessage("<An error occured : " + str(e) + ". Check your molecule's name.>", id, MroomId)
-			return
-		answUrl = ans['link']
-		chatbot.editMessage(answUrl, id, MroomId)
-	if Mcontent.find('!!wiki/') >= 0:
-		article = McontentCase[Mcontent.find('wiki/') + len('wiki/'):].replace(' ', '_').replace('</div>',
-																								 '').replace('\n', '')
-		id = chatbot.sendMessage("https://en.wikipedia.org/wiki/" + article, MroomId, noDelete=noDelete)
-	if Mcontent.find('!!xkcd') >= 0:
-		number=""
-		if Mcontent.find('xkcd/')>0:
-			number = McontentCase[Mcontent.find('xkcd/') + len('xkcd/'):].replace(' ', '_').replace('</div>',
-																								 '').replace('\n', '')
-		answ=session.get("http://xkcd.com/"+number).text
-		if answ.find("404 - Not Found")>0:
-			chatbot.sendMessage("Invalid ID", MroomId, noDelete=noDelete)
-			return
-		chatbot.sendMessage("http://xkcd.com/"+number, MroomId, noDelete=noDelete)
-	if Mcontent.find('!!flip') >= 0:
-		p=Mcontent.find('flip/')+len("flip/")
-		if p>=len("flip/"):
-			chatbot.sendMessage(random.choice(coolTables["flipsList"])+upsidedown.transform(McontentCase[p:])[::-1], MroomId, noDelete=noDelete)
-		else:
-			chatbot.sendMessage(random.choice(coolTables["tablesList"]), MroomId, noDelete=noDelete)
-	if Mcontent.find('!!doubleflip') >= 0:
-		p = Mcontent.find('doubleflip/') + len("doubleflip/")
-		if p >= len("doubleflip/"):
-			sss=upsidedown.transform(McontentCase[p:])
-			chatbot.sendMessage(sss+random.choice(coolTables["doubleflipsList"]) + sss[::-1], MroomId,
-								noDelete=noDelete)
-		else:
-			chatbot.sendMessage(random.choice(coolTables["tablesList"]), MroomId, noDelete=noDelete)
-	if Mcontent.find('!!untable') >= 0:
-		#
-		chatbot.sendMessage(random.choice(coolTables["untablesList"]), MroomId, noDelete=noDelete)
-	if Mcontent.find('!!gun') >= 0:
-		#
-		chatbot.sendMessage(random.choice(coolTables["gunsList"]), MroomId, noDelete=noDelete)
-	if Mcontent.find('!!beer') >= 0:
-		#
-		chatbot.sendMessage("http://www.mandevillebeergarden.com/wp-content/uploads/2015/02/Beer-Slide-Background.jpg",
-							MroomId, noDelete=noDelete)
-	if Mcontent.find('!!tea') >= 0:
-		#
-		chatbot.sendMessage("http://www.cherryhillgourmet.net/img/Tea/tea2.jpg",
-							MroomId, noDelete=noDelete)
-	if Mcontent.find('!!spam') >= 0:
-		#
-		chatbot.sendMessage("https://upload.wikimedia.org/wikipedia/commons/0/09/Spam_can.png", MroomId,
-							noDelete=noDelete)
-	if Mcontent.find('!!coffee') >= 0:
-		#
-		chatbot.sendMessage(
-			"http://res.freestockphotos.biz/pictures/10/10641-a-cup-of-coffee-on-a-bean-background-pv.jpg",
-			MroomId)
-	if Mcontent.find('!!sushi') >= 0:
-		#
-		chatbot.sendMessage(random.choice(coolTables["sushiList"]), MroomId, noDelete=noDelete)
-	if Mcontent.find('!!cake') >= 0:
-		#
-		chatbot.sendMessage(random.choice(coolTables["cakeList"]), MroomId, noDelete=noDelete)
-	if Mcontent.find('!!ice cream') >= 0:
-		#
-		chatbot.sendMessage(random.choice(coolTables["iceCreamList"]), MroomId, noDelete=noDelete)
-	if Mcontent.find('!!test') >= 0:
-		id = chatbot.sendMessage("a test !!", MroomId, noDelete=noDelete)
-		time.sleep(1)
-		chatbot.editMessage("edited !", id, MroomId)
-	if Mcontent.find('!!help') >= 0:
-		helpString = """Hi! I'm the almighty bot of ChemistrySE's main chatroom. /!\ If you find me annoying, you can ignore me by clicking on my profile image and chosing "ignore this user" /!\ You can find my documentation [here](http://meta.chemistry.stackexchange.com/a/3198/5591)."""
-		chatbot.sendMessage(helpString, MroomId, noDelete=noDelete)
-	if Mcontent.find('!!doi/') >= 0:
-		doi = McontentCase[Mcontent.find('doi/') + len('doi/'):].replace(' ', '%20').replace('</div>', '').replace(
-			'\n', '')
-		r = chatbot.sendRequest("http://pubs.acs.org/doi/abs/" + doi).text
-		if r.find('Your request resulted in an error') > 0:
-			chatbot.sendMessage("Could not find the requested DOI : " + doi, MroomId, noDelete=noDelete)
-		else:
-			try:
-				p = r.find('dc.Title" content="') + len('dc.Title" content="')
-				title = r[p:r.find('" />', p)]
+			time.sleep(1)
+			if tries > 4:
+				if type(r) != type(""):  # string or request object ?
+					r = r.text
+				error("The request failed : " + str(e), r)
+			tries += 1
+	return r
 
-				p = r.find('dc.Creator" content="') + len('dc.Creator" content="')
-				author1 = r[p:r.find('" />', p)]
 
-				chatbot.sendMessage("DOI " + doi + ' :\n"' + title + '"\nFirst author : ' + author1, MroomId,
-									noDelete=noDelete)
-			except Exception as e:
-				chatbot.sendMessage("An error occured :" + str(e), MroomId, noDelete=noDelete)
-	if Mcontent.find('!!scholar/') >= 0:
-		search = McontentCase[Mcontent.find('scholar/') + len('scholar/'):].replace(' ', '%20').replace('</div>',
-																										'').replace(
-			'\n', '')
-		reqUrl = 'http://scholar.google.fr/scholar?hl=en&q=' + urllib.quote(search.replace(" ", "+")).replace("%2520",
-																											  "+")
-		r = chatbot.sendRequest(reqUrl,
-								"get")  # encode it, get best result, display * best result * requests's link * list of 3 next results
-		r = r.text
+def getSavedData(name, roomId):
+	name = str(roomId) + "//savedData//" + str(name)
+	if not os.path.isfile(name):
+		return False
+	with open(name) as json_file:
+		data = json.load(json_file)
+	return data
 
-		numArticles = 2
-		articles = []
-		art, p = 0, r.find('<h3 class="gs_rt">')
-		with open("temp.txt","w") as f:
-			f.write(r)
-		while p >= 0 and art < numArticles:
-			p += len('<h3 class="gs_rt">')
-			p=r.find('"',p)
-			url = r[p:r.find('"', p)]
-			print(url)
-			p = r.find('">', p) + len('">')
-			title = r[p:r.find('</a>', p)].replace("<b>", "").replace("</b>", "")
-			art += 1
-			articles.append({"title": title, "url": url})
-			p = r.find('<h3 class="gs_rt">', p + 1)
-		fullMsg = "[Link to the request](" + reqUrl + "). Top links : "
-		for i in articles:
-			fullMsg += '[' + i["title"] + "](" + i['url'] + ") | "
-		chatbot.sendMessage(fullMsg, MroomId, noDelete=noDelete)
-	w = """if Mcontent.find('!!nogreet') >= 0:
-		noGreet=getSavedData("noGreet.json")
-		if not str(message['user_id']) in noGreet:
-			noGreet[message['user_id']] = MuserName
-			setSavedData("noGreet.json",noGreet)
-			chatbot.sendMessage(MuserName + " was added to the noGreet list.", MroomId, noDelete=noDelete)
-			log(MuserName + " was added to the noGreet list.")
-		else:
-			chatbot.sendMessage("You are already in the noGreet list.", MroomId, noDelete=noDelete)
-	if Mcontent.find('!!greet') >= 0:
-		noGreet = getSavedData("noGreet.json")
-		if str(message['user_id']) in noGreet:
-			noGreet.pop(str(message['user_id']))
-			setSavedData("noGreet.json", noGreet)
-			chatbot.sendMessage(MuserName + " was removed from the noGreet list.", MroomId, noDelete=noDelete)
-			log(MuserName + " was removed from the noGreet list.")
-		else:
-			chatbot.sendMessage("You are not in the noGreet list.", MroomId, noDelete=noDelete)
+
+def setSavedData(name, data, roomId):
+	name = str(roomId) + "//savedData//" + str(name)
+	with open(name, 'w') as outfile:
+		json.dump(data, outfile)
+
+
+# Login
+
+def login():
+	log("--- NEW LOGIN ---")
+	""" logs in to all the necessary channels"""
+
+	def getField(field, url="", r=""):
+		"""gets the hidden field <field> from string <r> ELSE url <url>"""
+		if r == "":
+			r = sendRequest(url, 'get').text
+			r.encode('utf-8')
+		p = r.find('name="' + field)
+		if p <= 0:
+			error("No field <" + field + "> found", r)
+		p = r.find('value="', p) + len('value="')
+		key = r[p:r.find('"', p + 1)]
+		return key
+	def getFieldValue(field, url="", r=""):
+		"""gets the hidden field value <field> from string <r> ELSE url <url>"""
+		if r == "":
+			r = sendRequest(url, 'get').text
+			r.encode('utf-8')
+		p = r.find(field+'=')
+		if p <= 0:
+			error("No field value <" + field + "> found", r)
+		p = r.find(field+'=', p) + len(field+'=')
+		key = r[p:r.find('&', p + 1)]
+		return key
+
+	# Login to OpenId
+	
+	payload = {"email": email, "password": password, "isSignup":"false", "isLogin":"true","isPassword":"false","isAddLogin":"false","hasCaptcha":"false","ssrc":"head","submitButton":"Log in",
+			   "fkey": getField("fkey", "https://openid.stackexchange.com/account/login")}
+	r = sendRequest("https://chemistry.stackexchange.com/users/login-or-signup/validation/track","post",payload).text
+	logFile(r,"log_signin.html")
+	if r.find("Login-OK")<0:
+		error("Logging to Chem-SE - FAIL")
+	log("Logging to Chem-SE - OK")
+	
+	payload = {"email": email, "password": password, "ssrc":"head",
+			   "fkey": getField("fkey", "https://openid.stackexchange.com/account/login")}
+	r = sendRequest("https://chemistry.stackexchange.com/users/login?ssrc=head&returnurl=https%3a%2f%2fchemistry.stackexchange.com%2f","post",payload).text
+	logFile(r,"log_signin2.html")
+	if r.find('<a href="https://chemistry.stackexchange.com/users/logout"')<0:
+		error("Loading Chem-SE profile - FAIL")
+	log("Loading Chem-SE profile - OK")
+	
+	sendRequest("https://chemistry.stackexchange.com/users/login/universal/request","post")
+	
 	"""
-	if Mcontent.find('!!greet/') >= 0:
-		user = McontentCase[Mcontent.find('greet/') + len('greet/'):].replace('%20', ' ').replace('</div>', '').replace(
-			'\n', '')
-		id = 0
-		try:
-			id = int(user)
-		except Exception:
-			pass
-		uName = user
-		if id is not None and id > 0:
-			r = chatbot.sendRequest("http://chat.stackexchange.com/users/" + user).text
-			p = r.find("<title>User ") + len("<title>User ")
-			uName = r[p:r.find(" |", p)]
-		chatbot.sendMessage(
-			"Welcome to The Periodic Table " + uName + "! [Here](http://meta.chemistry.stackexchange.com/q/2723/) are our chat guidelines and it's recommended that you read them. If you want to turn Mathjax on, follow the instructions [in this answer](http://meta.stackexchange.com/a/220976/). Happy chatting!",
-			MroomId)
-	#** Owners only
-	if Mcontent.find('!!sleep/') >= 0:
-		if str(message['user_id']) in coolTables["owners"]:
-			timeSleep = McontentCase[Mcontent.find('sleep/') + len('sleep/'):].replace(' ', '%20').replace('</div>',
-																										   '').replace(
-				'\n', '')
+	sendRequest("http://stackexchange.com/users/chat-login", "post")
+	r = sendRequest("http://chat.stackexchange.com/chats/join/favorite", "get").text
+	setGlobalVars("masterFkey", getField("fkey", r=r))
+	log("Got master fkey : " + globalVars["masterFkey"])
+	log("Login to the SE chat successful")"""
+	
+	r = sendRequest("http://chat.chemistry.stackexchange.com/chats/join/favorite", "get").text
+	setGlobalVars("masterFkey", getField("fkey", r=r))
+	print(globalVars["masterFkey"])
+	log("Got master fkey : " + globalVars["masterFkey"])
+	log("Login to the SE chat successful")
+	
+	return session
+
+
+# Chat Functions
+
+def sendMessage(msg, roomId, noDelete=False):  # 10121 : test, 3229 : chemistry
+	roomId = str(roomId).replace("m","")
+	isMetaStr="meta." if globalVars["roomsJoined"][roomId]["meta"] else ""
+	payload = {"fkey": globalVars["masterFkey"], "text": msg}
+	r = sendRequest("http://chat."+isMetaStr+"stackexchange.com/chats/" + roomId + "/messages/new", "post", payload)
+	logFile(r)
+	if r.text.find("You can perform this action again") >= 0:
+		time.sleep(3)
+		sendMessage(msg, roomId)
+	else:
+		if r.text.find("The message is too long") >= 0:
+			log("Message too long : " + msg)
+			return
+		r = r.json()
+
+		if noDelete:  # noDelete actually deletes the message ;_;
+			threading.Thread(target=deleteMessage, args=[r["id"], roomId, 60 * 1.5]).start()
+		return r["id"]
+
+
+def editMessage(msg, id, roomId):
+	roomId = str(roomId).replace("m","")
+	id = str(id)
+	isMetaStr="meta." if globalVars["roomsJoined"][roomId]["meta"] else ""
+	payload = {"fkey": globalVars["masterFkey"], "text": msg}
+	headers = {'Referer': "http://chat."+isMetaStr+"stackexchange.com/rooms/" + roomId}
+	r = sendRequest("http://chat."+isMetaStr+"stackexchange.com/messages/" + id, "post", payload, headers).text
+	if r.find("You can perform this action again") >= 0:
+		time.sleep(3)
+		editMessage(msg, id, roomId)
+
+
+def deleteMessage(id, roomId, waitTime=0):
+	time.sleep(waitTime)
+	roomId = str(roomId).replace("m","")
+	isMetaStr="meta." if globalVars["roomsJoined"][id]["meta"] else ""
+	payload = {"fkey": globalVars["masterFkey"]}
+	headers = {'Referer': "http://chat."+isMetaStr+"stackexchange.com/rooms/" + roomId}
+	r = sendRequest("http://chat."+isMetaStr+"stackexchange.com/messages/" + id + "/delete", "post", payload, headers).text
+	if r.find("You can perform this action again") >= 0:
+		time.sleep(3)
+		deleteMessage(id, roomId)
+
+
+def joinRooms(roomsDict):
+	def joinRooms_main():
+		"""
+		roomsTable is a dict {str(roomId):activityActionFunction}
+		The ActivityActionFunction is triggred every time some activity related to that room is recorded.
+		"""
+		payload = {"fkey": globalVars["masterFkey"], 'since': 0, 'mode': 'Messages', 'msgCount': 100}
+		for key in roomsDict.keys():
+			roomId = str(key)
+			isMeta=roomId.find("m")>=0
+			isMetaStr="meta." if isMeta else ""
+			realId=roomId.replace("m","")
+
+			# configure saved data
+			for name in [roomId, roomId + '//temp', roomId + '//savedData']:
+				if not os.path.exists(name):
+					os.makedirs(name)
+
+			r = sendRequest("http://chat."+isMetaStr+"stackexchange.com/chats/" + realId + "/events", "post", payload).json()
+			t = globalVars["roomsJoined"]
+			t[roomId] = {"eventtime": r['time']}
+
+			r = sendRequest("http://chat."+isMetaStr+"stackexchange.com/rooms/info/" + realId, "post", payload).text  # get room info
+			roomName, roomNetworkUrl = "",""
 			try:
-				timeSleep = float(timeSleep) * 60
-				chatbot.sendMessage("See you in " + str(timeSleep / 60.) + " minutes !", MroomId, noDelete=noDelete)
-				time.sleep(timeSleep)
+				p = r.find("cdn-chat.sstatic.net/chat/css/chat.")+len("cdn-chat.sstatic.net/chat/css/chat.")
+				roomNetworkUrl = 'http://'+r[p:r.find('.css?', p)]
+				p = r.find("all time messages in ",p)+ len("all time messages in ")
+				roomName = r[p:r.find('"', p)]
 			except Exception:
-				chatbot.sendMessage("invalid time", MroomId, noDelete=noDelete)
-	if Mcontent.find('!!reload') >= 0:
-		if str(message['user_id']) in coolTables["owners"]:
+				log("Failed to scrape metadata for room : " + roomId)
+			t[roomId]["roomName"] = roomName
+			t[roomId]["meta"] = isMeta
+			t[roomId]["roomNetworkUrl"] = roomNetworkUrl
+			t[roomId]["usersGreeted"] = []
+
+			setGlobalVars("roomsJoined", t)  # update global table
+			log("Joined room : " + roomName + " / id: " + roomId)
+		while True:
+			for key in globalVars["roomsJoined"]:
+				try:
+					room = globalVars["roomsJoined"][key]
+					roomId = key.replace("m","")
+					isMetaStr="meta." if room["meta"] else ""
+					lastTime = room["eventtime"]
+					payload = {"fkey": globalVars["masterFkey"], 'r' + roomId: lastTime}
+					activity = sendRequest("http://chat."+isMetaStr+"stackexchange.com/events", "post", payload).json()
+					roomResult = {}
+					try:  # update eventtime
+						roomResult = activity['r' + roomId]
+						eventtime = roomResult['t']
+						t = globalVars["roomsJoined"]
+						t[roomId]["eventtime"] = eventtime
+						setGlobalVars("roomsJoined", t)
+					except KeyError as ex:
+						pass
+					activityHandler = roomsDict[key]
+					try:
+						activityHandler(roomResult)  # send activity to designated function
+					except Exception as e:
+						log("Error occured while sending event <" + str(roomResult) + "> : " + getException())
+				except Exception as e:
+					log('Error while receiving json data from a chatroom : '+str(e))
+			time.sleep(5)
+	threading.Thread(target=joinRooms_main).start()
+
+def enableControl(roomId):
+	def enableControl_main(roomId):
+		roomId=str(roomId)
+		while not (roomId in globalVars["roomsJoined"]):
+			time.sleep(1)
+		while not ("roomName" in globalVars["roomsJoined"][roomId]):
+			time.sleep(1)
+		roomName=globalVars["roomsJoined"][roomId]["roomName"]
+		while True:
+			msg=str(input(roomName + ' ('+roomId+') > '))
 			try:
-				newCode=chatbot.sendRequest("https://raw.githubusercontent.com/gauthierhaas/SE_Bot/master/updater.py").text
-				exec(newCode, globals())
-				chatbot.sendMessage("Success !",MchatRoom)
+				sendMessage(msg,roomId)
 			except Exception as e:
-				chatbot.log("Error : "+str(e))
-	if Mcontent.find('!!daily') >= 0:
-		if str(message['user_id']) in coolTables["owners"]:
-			try:
-				dailyQuestionThread=threading.Thread(target=sendDailyQuestion, args={MroomId})
-				dailyQuestionThread.start()
-			except Exception as e:
-				chatbot.log("Error : " + str(e))
+				print('Failed : '+str(e))
+	threading.Thread(target=enableControl_main,args={roomId}).start()
+
+def getNetworkQuestions(roomId,minVotes,maxNumber=200):
+	roomId = str(roomId)
+	while not (roomId in globalVars["roomsJoined"]):
+		time.sleep(1)
+	while not ("roomNetworkUrl" in globalVars["roomsJoined"][roomId]):
+		time.sleep(1)
+	qUrl=globalVars["roomsJoined"][roomId]["roomNetworkUrl"]
+	topUrl=qUrl+"/questions"
+	questionsTable=[]
+	i,page=0,0
+	finished=False
+	while not finished:
+		page+=1
+		r=sendRequest(topUrl+"?pagesize=50&page="+str(page)+"&sort=votes").text
+		if r.find("Page Not Found")>=0:
+			finished=True
+			break
+		p=r.find('id="question-summary-')
+		while p>=0 and not finished:
+			if i>=maxNumber:
+				finished=True
+				break
+			p+=len('id="question-summary-')
+			questionId = r[p:r.find('">',p)]
+			p=r.find('vote-count-post "><strong>',p)+len('vote-count-post "><strong>')
+			votes=int(r[p:r.find('</strong>',p)])
+			if votes<minVotes:
+				finished=True
+				break
+			questionsTable.append(topUrl+'/'+questionId)
+			i += 1
+			p = r.find('id="question-summary-',p)
+	setSavedData("questions_interesting_"+str(minVotes),questionsTable,roomId)
+	log("Got "+str(i)+" questions above "+str(minVotes)+" in "+str(page)+" pages from "+topUrl)
+	return questionsTable
 
 
-chatbot.joinRooms({"1": handleActivity,"1098m": handleActivity})  # 3229 : chemistry, 26060 : g-block, 1: sandbox
 
-chatbot.enableControl("1")
+
+
+
+
+
+
+
+
+
+
+
+
+
