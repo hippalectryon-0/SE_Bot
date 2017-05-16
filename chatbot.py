@@ -279,6 +279,7 @@ def joinRooms(roomsDict):
 				try:
 					room = globalVars["roomsJoined"][key]
 					roomId = key
+					isMetaStr="meta." if room["meta"] else ""
 					lastTime = room["eventtime"]
 					payload = {"fkey": globalVars["masterFkey"], 'r' + roomId: lastTime}
 					activity = sendRequest("http://chat."+isMetaStr+"stackexchange.com/events", "post", payload).json()
@@ -290,14 +291,15 @@ def joinRooms(roomsDict):
 						t[roomId]["eventtime"] = eventtime
 						setGlobalVars("roomsJoined", t)
 					except KeyError as ex:
-						pass  # no updated time from room
-					activityHandler = roomsDict[key]
+						pass
+					activityHandler = roomsDict[key+("m" if room["meta"] else "")]
 					try:
 						activityHandler(roomResult)  # send activity to designated function
 					except Exception as e:
 						log("Error occured while sending event <" + str(roomResult) + "> : " + getException())
 				except Exception as e:
 					log('Error while receiving json data from a chatroom : '+str(e))
+					#print(isMeta,key,globalVars["roomsJoined"][key])
 			time.sleep(5)
 	threading.Thread(target=joinRooms_main).start()
 
