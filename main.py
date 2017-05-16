@@ -160,9 +160,9 @@ def sendDailyQuestion(roomId):
 def handleMessages(message):
 	global dailyQuestionThread
 	Mcontent = HTMLparser.unescape(message["content"].replace('<div>', '').replace('</div>', '').replace( #encode("utf-8").
-		"<div class='full'>", '')).encode("utf-8")
-	MuserName = message['user_name'].encode("utf-8")
-	MchatRoom = message['room_name'].encode("utf-8")
+		"<div class='full'>", ''))
+	MuserName = message['user_name']
+	MchatRoom = message['room_name']
 	MroomId = str(message['room_id'])  # int
 	noDelete = Mcontent.find('!!!') >= 0
 	tempDataPath = MroomId + '//temp//'
@@ -391,5 +391,4 @@ def handleMessages(message):
 
 chatbot.joinRooms({"1": handleActivity,"1098m": handleActivity})  # 3229 : chemistry, 26060 : g-block, 1: sandbox
 
-chatbot.enableControl("1098m")
-
+chatbot.enableControl("1")
