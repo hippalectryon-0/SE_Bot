@@ -51,4 +51,15 @@ When calling `chatbot.login()`, if your credidentials have not been saved, they 
 
 Credidentials are stored in `Credidentials` in the working directory.
 
+### Events
 
+The events passed on to your `callbackEventFunction` are the unmodified events sent by the server, in the following template:
+
+`{'e': [{'event_type': 1, 'time_stamp': 1511703791, 'content': 'test string', 'id': 81969291, 'user_id': 200207, 'user_name': 'Chemobot', 'room_id': 1, 'room_name': 'Sandbox', 'message_id': 41365631}], 't': 81969291, 'd': 1}`
+
+All the parameters are explicit, except the `event_type`. Here are some event types values:
+
+* `'event_type': 1` - new message
+* `'event_type': 3` - user entered the room
+* `'event_type': 6` - a message had its star count changed
+* `'event_type': 10` - deleted message
