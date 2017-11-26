@@ -162,6 +162,9 @@ def initCommands():
 	def exit(room, event, *args):
 		if event['user_id']==117922: # Hippalectryon
 			room.leave()
+	def exit_all(room, event, *args):
+		if event['user_id']==117922: # Hippalectryon
+			chatbot.leaveAllRooms()
 	def repeat(room, event, *args): # nope
 		return
 		s=args[0]
@@ -237,6 +240,7 @@ def initCommands():
 	
 	
 	addCommand(exit, 'exit')
+	addCommand(exit_all, 'exit!')
 	addCommand(beer, 'beer')
 	addCommand(tea, 'tea')
 	addCommand(spam, 'spam')
@@ -271,7 +275,10 @@ def handleMessage(room, event):
 					content_=content_[len(cmd_msg)+len(sep):]
 					args=content_.split(sep)
 					if args==['']: args=[]
-					func(room, event, *args)
+					try:
+						func(room, event, *args)
+					except Exception as e:
+						log("An error occured while launcing function {} with args {} : {}".format(cmd_msg, args, e))
 				
 			
 
