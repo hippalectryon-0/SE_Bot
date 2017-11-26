@@ -253,7 +253,7 @@ class Chatbot():
 		log("Got chat fkey : {}".format(fkey))
 		log("Login to the SE chat successful")
 
-	def join_room(self,room_id,handleEvents): # Join a chatroom
+	def joinRoom(self,room_id,handleEvents): # Join a chatroom
 		r=Room(room_id, self, handleEvents)
 		self.rooms_joined.append(r)
 		return r
