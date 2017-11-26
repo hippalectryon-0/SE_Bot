@@ -1,19 +1,54 @@
 # SE_Bot
 A bot for StackExchange chatrooms. In use in ChemistrySE's main chatroom.
 
-## How to use this framework [Outdated help, will update later]
+The framework is located in `chatbot.py`, all the other files are optional.
 
-Enter the email and password of the account you will be using in the appropriate fields at the beginning of the script.
+`chatbot.py` provides an interface to communicate with StackExchange's chatrooms.
 
-A bunch of functions are defined, and at the end there's a comment "# Main Loop"
+An example of how to use this framework is provided in `main.py`, Chemobot's script.
 
-Below this comment you should have
+`upsidedown.py`is simply a library used in Chemobot.
 
-    login()
-    joinRooms({"id1": f1, "id2": f2})
+## How to use this framework
 
-This will connect the bot to the rooms with ids "id1", "id2". Every time some activity is detected in, for instance, the room with id "id1", the function "f1" will be called and the events will be passed as an argument.
+First of all initalize the chatbot:
+````
+from chatbot import Chatbot
+my_chatbot=Chatbot() # create an instance of Chatbot
+my_chatbot.login() # logs in to the SE network. username/pass are input through the CLI, or decrypted from a previous save file
+````
 
-The function "handleActivity", joint with "handleMessages", is an example of how you can costomize the bot do make it do whatever you want.
+Then join the rooms you want:
+````
+room1=my_chatbot.joinRoom(1,handleEvents) # Sandbox
+room3229=my_chatbot.joinRoom(3229,handleEvents) # The Periodic Table
+#my_chatbot.joinRoom(roomId, callbackEventFunction)
+````
+ You can now receive events from the chatroom with your `callbackEventFunction`, and send / edit messages using `room.sendMessage(msg)` or `room.editMessage(newMsg, msgId)`
 
-[More documentation will be added later on]
+
+And you're set !
+
+## Some documentation
+
+### chatbot.joinRoom(roomId, callbackEventFunction)
+
+Upon joining a room using this function, whenever the chatbot received events from that room, it will call `callbackEventFunction(room, event)`.
+
+`chatbot.joinRoom` returns a `Room`object.
+
+### Room objects - sending and editing messages
+
+`Room`objects enable you to send and edit messages in the joined room - `room=chatbot.joinRoom(roomId, callbackEventFunction)`
+
+Sending a message: `id=room.sendMessage('Hello, world!')`. This functions returns the `id` of the sent message.
+
+Editing a message: `room.editMessage('Goodbye, World!', id)`
+
+### Credidentials
+
+When calling `chatbot.login()`, if your credidentials have not been saved, they will be asked as inputs in the CLI. Then, you will have the possibility to store them in an encrypted file (DES encryption) protected by a password. You will then be able to login using only that password.
+
+Credidentials are stored in `Credidentials` in the working directory.
+
+
