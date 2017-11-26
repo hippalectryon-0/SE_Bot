@@ -15,7 +15,7 @@ First of all initalize the chatbot:
 ````
 from chatbot import Chatbot
 my_chatbot=Chatbot() # create an instance of Chatbot
-my_chatbot.login() # logs in to the SE network. username/pass are input through the CLI, or decrypted from a previous save file
+my_chatbot.login() # logs in to the SE network. username/pass are input through the CLI, or decrypted from a previous save file. login accepts a parameter 'host' which defaults to 'chemistry.stackexchange.com'
 ````
 
 Then join the rooms you want:
