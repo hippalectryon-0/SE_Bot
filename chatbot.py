@@ -133,18 +133,23 @@ class Room():
 			except websocket.WebSocketConnectionClosedException as e:
 				log('Websocket closed unexpectedly for room {}'.format(self.id))
 				self.running=False
-			if a is not None and a != "" and a!='{"r1":{}}': # not an empty messages
-				self.handleActivity(json.loads(a))
+			if a is not None and a != "":# not an empty messages
+				a=json.loads(a)
+				if "r{}".format(self.id) in a:
+					a=a["r{}".format(self.id)]
+					if a!={}:
+						self.handleActivity(a)
 	
 	def leave(self):
 		log("Left room {}".format(self.id))
 		self.running=False
+		self.chatbot.rooms_joined.remove(self)
 	
 	def handleActivity(self, activity):
-		log('Got activity {}'.format(activity))
-		activity_timestamp=activity['r1']['t']
-		if "e" in activity['r1']: # if there are events recorded
-			for event in activity['r1']['e']:
+		log('Got activity {}'.format(activity), verbose=False)
+		activity_timestamp=activity['t']
+		if "e" in activity: # if there are events recorded
+			for event in activity['e']:
 				self.handleEvents(self, event)
 				
 	def sendMessage(self, msg):
@@ -253,7 +258,7 @@ class Chatbot():
 		self.rooms_joined.append(r)
 		return r
 	
-	def leave_all_rooms(self):
+	def leaveAllRooms(self):
 		for room in self.rooms_joined:
 			room.leave()
 
