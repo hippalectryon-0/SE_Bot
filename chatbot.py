@@ -208,7 +208,7 @@ class Chatbot():
 	def log(self, msg, name="logs/log.txt"): # Logging messages and errors | Appends <msg> to the log <name>, prints if self.verbose
 		log(msg,name,verbose=self.verbose)
 		
-	def login(self): # Login to SE
+	def login(self, host="chemistry.stackexchange.com"): # Login to SE
 		def getField(field, url="", r=""):
 			"""gets the hidden field <field> from string <r> ELSE url <url>"""
 			if r == "":
@@ -228,24 +228,24 @@ class Chatbot():
 		fkey=getField("fkey", "https://openid.stackexchange.com/account/login")
 		payload = {"email": email, "password": password, "isSignup":"false", "isLogin":"true","isPassword":"false","isAddLogin":"false","hasCaptcha":"false","ssrc":"head","submitButton":"Log in",
 			   "fkey": fkey}
-		r = self.sendRequest("https://chemistry.stackexchange.com/users/login-or-signup/validation/track","post",payload).text
+		r = self.sendRequest("https://{}/users/login-or-signup/validation/track".format(host),"post",payload).text
 		if r.find("Login-OK")<0:
-			Log("Logging to Chem-SE - FAILURE - aborting")
+			Log("Logging to SE - FAILURE - aborting")
 			abort()
-		log("Logging to Chem-SE - OK")
+		log("Logging to SE - OK")
 		
 		payload = {"email": email, "password": password, "ssrc":"head", "fkey": fkey}
-		r = self.sendRequest("https://chemistry.stackexchange.com/users/login?ssrc=head&returnurl=https%3a%2f%2fchemistry.stackexchange.com%2f","post",payload).text
-		if r.find('<a href="https://chemistry.stackexchange.com/users/logout"')<0:
-			error("Loading Chem-SE profile - FAILURE -  aborting")
+		r = self.sendRequest("https://{}/users/login?ssrc=head&returnurl=https%3a%2f%2f{}%2f".format(host, host),"post",payload).text
+		if r.find('<a href="https://{}/users/logout"'.format(host))<0:
+			error("Loading SE profile - FAILURE -  aborting")
 			abort()
-		log("Loading Chem-SE profile - OK")
+		log("Loading SE profile - OK")
 		
 		# Logs in to all other SE sites
-		self.sendRequest("https://chemistry.stackexchange.com/users/login/universal/request","post")
+		self.sendRequest("https://{}/users/login/universal/request".format(host),"post")
 		
 		# get chat key
-		r = self.sendRequest("http://chat.chemistry.stackexchange.com/chats/join/favorite", "get").text
+		r = self.sendRequest("http://chat.{}/chats/join/favorite".format(host), "get").text
 		p=r.find('<a href="/users/')+len('<a href="/users/')
 		self.bot_chat_id=int(r[p:r.find('/',p)])
 		fkey=getField("fkey", r=r) # /!\ changes from previous one
