@@ -275,8 +275,8 @@ def handleMessage(room, event):
 				
 			
 
-chatbot.join_room(1,handleEvents)
-
+chatbot.join_room(1,handleEvents) # Sandbox
+chatbot.join_room(3229,handleEvents) # The Periodic Table
 
 
 
