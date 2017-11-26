@@ -1,5 +1,5 @@
 # SE_Bot
-A bot for StackExchange chatrooms. In use in ChemistrySE's main chatroom.
+A bot for StackExchange chatrooms. In use in ChemistrySE's main chatroom. Tested with Python 3.5 & 3.6
 
 The framework is located in `chatbot.py`, all the other files are optional.
 
