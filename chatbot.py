@@ -1,355 +1,310 @@
 # -*- coding: utf-8 -*-
+## V 3.0
+"""
+ChangeLog
+- V3.0 -
+Rewrote chatbot.py using classes
+Cleaned the code
+Using pycryptodome instead of simplecrypt
+Using websockets to listen top new events
+"""
+## Description
+"""
+A framework to set up a chat bot on StackExchange's chat rooms
+"""
+
 # Imports and initialization
-import requests, codecs, time, json, getpass, threading, os, linecache, sys, simplecrypt
+import requests # making POST/GET requests
+import ujson as json # fast JSON library
+import time # timestamping events + measuring intervals between events / pausing the program / getting time since epoch for starting timestamps
+import os # get local path, create folders
+import Cryptodome.Cipher.DES # encrypt and decrypt credidentials
+import getpass # input password without outputing characters on CLI
+import sys # exit program
+import websocket # listen to and send websockets from/to the chat
+import threading # multiprocessing - to make the rooms run in parallel
 
-# os.chdir("C:/Users/Hippa/PycharmProjects/CSE_chatbot")  # Change to script's directory. Will store images and logs here.
-
-if os.path.isfile("Credidentials"):
-	goodPassword=False
-	while not goodPassword:
-		hash_password = getpass.getpass("Password for the encrypted credidentials ? ")
-		hash_password += '0' * (16-len(hash_password) % 16)
-		f=open("Credidentials","rb");string=f.read();f.close()
-		encrypted_email=string[:string.find(b'|..|')]
-		encrypted_password = string[string.find(b'|..|')+len(b'|..|'):]
-		try:
-			email=simplecrypt.decrypt(hash_password,encrypted_email)
-			password=simplecrypt.decrypt(hash_password,encrypted_password)
-			goodPassword=True
-		except Exception as e:
-			print('Bad password / corrupted file, try again.')
-else:
-	email = str(input(("Email ? ")))  # SE email and username. Don't leave them as plain text.
-	password = getpass.getpass("Password ? ")
-	storeEncrypted="n"#str(input("Do you want to encrypt and store those credidentials for a quicker access ? (y/n): ")).lower()
-	if (storeEncrypted=='y' or storeEncrypted=='yes' or storeEncrypted is None or storeEncrypted==""):
-		goodPassword=False
-		hash_password1 = ""
-		while not goodPassword:
-			hash_password1 = getpass.getpass("Input a password to decrypt the credidentials : ")
-			hash_password2 = getpass.getpass("Confirmation - re-enter the password : ")
-			if hash_password1==hash_password2:
-				goodPassword=True
-			else:
-				print("The password do not match, try again.")
-		hash_password1+='0'*(16-len(hash_password1)%16)
-		encrypted_email = simplecrypt.encrypt(hash_password1, email)
-		encrypted_pass=simplecrypt.encrypt(hash_password1, password)
-		f=open("Credidentials","w");f.write(encrypted_email+b'|..|'+encrypted_pass);f.close()
-		print("Credidentials stored !")
-
-
-
-
-session = requests.Session()  # main session for POST/GET requests
-
-# Variables
-globalVars = {
-	"roomsJoined": {},  # List of rooms joined : {roomId1:timestamp1,roomId2:timestamp2}
-}
-
-
-def setGlobalVars(field, value):
-	global globalsVars
-	globalVars[field] = value
-
-
-# Utility
-def getException():
-	exc_type, exc_obj, tb = sys.exc_info()
-	f = tb.tb_frame
-	lineno = tb.tb_lineno
-	filename = f.f_code.co_filename
-	linecache.checkcache(filename)
-	line = linecache.getline(filename, lineno, f.f_globals)
-	return 'EXCEPTION IN ({}, LINE {} "{}"): {}'.format(filename, lineno, line.strip(), exc_obj)
-
-
-def logFile(r,
-			name="logFile.html"):  # logs the string in the file <name>. Will overwrite previous data. Will be improved later on.
-	with codecs.open(name, "w", encoding="utf-8") as f:
-		f.write(str(r))
-
-
-def log(r, name="log.txt", verbose=True):  # Appends <r> to the log <name> and prints it.
-	r = str(r)
-	with codecs.open(name, "a", encoding="utf-8") as f:
+# useful functions
+def log(msg, name="logs/log.txt",verbose=True): # Logging messages and errors | Appends <msg> to the log <name>, prints if verbose
+	msg=str(msg)
+	with open(name, "ab") as f:
 		timeStr = str(time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(time.time())))
-		f.write(timeStr + ' ' + r + '\n')
-		if verbose: print('<Log> ' + r)
+		f.write('{} {}\n'.format(timeStr,msg).encode('utf-8'))
+		if verbose: print('<Log> {}'.format(msg))
 
+def logFile(r,name="logs/logFile.html"):  # logs the string in the file <name>. Will overwrite previous data.
+	with open(name, "wb") as f:
+		f.write(r.encode('utf-8'))
 
-def error(msg="", logFileStr=""):  # Prints the error *and breaks the script !!* Will be improved later on.
-	log('ERROR : ' + msg)
-	if logFileStr != "":
-		logFile(logFileStr)
-	sys.exit()
+def get_credidentials(): # gets credidentials from encrypted file / asks for them and encrypts them
+	## WARNING: ENCRYPTION DOES NOT SUPPORT PASSWORDS WITH " " (blank spaces) !!
+	def pad(text): # makes length a multiple of 8 and transforms to bytes
+		if len(text)%8==0: return text.encode('utf-8')
+		return (text+' '*(8-len(text)%8) ).encode('utf-8')
+	verif_text="verif||" # text used to check if the decrypted strings are the good ones, i.e. if the provided key is valid
+	if os.path.isfile("Credidentials"): # Credidentials file exists, decrypt them
+		goodPassword=False
+		while not goodPassword:
+			hash_password = pad(getpass.getpass("Password for the encrypted credidentials ? "))
+			with open("Credidentials","rb") as f:
+				encrypted_string=f.read()
+			encrypted_verif=encrypted_string[:encrypted_string.find(b'/../')]
+			encrypted_email=encrypted_string[encrypted_string.find(b'/../')+len(b'/../'):encrypted_string.find(b'|..|')]
+			encrypted_password = encrypted_string[encrypted_string.find(b'|..|')+len(b'|..|'):]
+			key=Cryptodome.Cipher.DES.new(hash_password, Cryptodome.Cipher.DES.MODE_ECB)
+			try:
+				verif=key.decrypt(encrypted_verif)
+				email=(key.decrypt(encrypted_email)).replace(b' ',b'')
+				password=(key.decrypt(encrypted_password)).replace(b' ',b'')
+				goodPassword= verif==pad(verif_text)
+				if goodPassword:
+					log('Credidentials retrieved successfully')
+			except Exception as e:
+				log('Error while decrypting credidentials: {}'.format(e))
+				goodPassword=False
+			if not goodPassword:
+				log('Bad password / corrupted file, try again.')
+	else: # No credidentials are stored, ask for new ones
+		email = str(input(("Email ? ")))  # SE email and passwords. Don't leave them as plain text.
+		password = getpass.getpass("Password ? ")
+		storeEncrypted=str(input("Do you want to encrypt and store those credidentials for a quicker access ? (y/n): ")).lower()
+		if (storeEncrypted=='y' or storeEncrypted=='yes' or storeEncrypted is None or storeEncrypted==""):
+			goodPassword=False
+			hash_password1 = ""
+			while not goodPassword:
+				hash_password1 = getpass.getpass("Input a password to decrypt the credidentials : ")
+				hash_password2 = getpass.getpass("Confirmation - re-enter the password : ")
+				if hash_password1==hash_password2:
+					goodPassword=True
+				else:
+					log("The password do not match, try again.")
+			hash_password1=pad(hash_password1)
+			email=pad(email)
+			password=pad(password)
+			key=Cryptodome.Cipher.DES.new(hash_password1, Cryptodome.Cipher.DES.MODE_ECB)
+			encrypted_email = key.encrypt(email)
+			encrypted_password = key.encrypt(password)
+			encrypted_verif = key.encrypt(pad(verif_text))
+			with open("Credidentials","wb") as f:
+				f.write(encrypted_verif+b'/../'+encrypted_email+b'|..|'+encrypted_password)
+			log("Credidentials stored !")
+	return email, password
 
+def abort(): sys.exit()
 
-def sendRequest(url, typeR="get", payload={}, headers={},verify=True):
-	r = ""
-	successful, tries = False, 0
-	while successful == False:
+# handle rooms interactions
+class Room():
+	def __init__(self, room_id, chatbot, handleEvents):
+		# propagate vars
+		self.id=room_id # room identifier
+		self.chatbot=chatbot # parent chatbot
+		self.handleEvents=handleEvents # callback for events
+		
+		#initialize vars
+		self.thread=None # own thread
+		self.running=False # currently running ?
+		self.ws=None # WebSocket
+		self.temp_path="{}/temp".format(self.id)
+		
+		# initialize
+		self.connect_ws() # attempt to connect via WebSockets
+		if not os.path.exists("{}".format(self.id)):
+			os.makedirs("{}".format(self.id))
+		if not os.path.exists("{}/temp".format(self.id)):
+			os.makedirs("{}/temp".format(self.id))
+	
+	def connect_ws(self):
+		payload={"fkey": self.chatbot.fkey,'roomid': self.id}
 		try:
-			if typeR == "get":
-				r = session.get(url, data=payload, headers=headers, verify=verify)
-			elif typeR == "post":
-				r = session.post(url, data=payload, headers=headers, verify=verify)
-			else:
-				error("Invalid request type :" + str(typeR))
-			successful = True
+			r=json.loads(self.chatbot.sendRequest("https://chat.stackexchange.com/ws-auth","post",payload).text)
 		except Exception as e:
-			time.sleep(1)
-			if tries > 4:
-				if type(r) != type(""):  # string or request object ?
-					r = r.text
-				error("The request failed : " + str(e), r)
-			tries += 1
-	return r
-
-
-def getSavedData(name, roomId):
-	name = str(roomId) + "//savedData//" + str(name)
-	if not os.path.isfile(name):
-		return False
-	with open(name) as json_file:
-		data = json.load(json_file)
-	return data
-
-
-def setSavedData(name, data, roomId):
-	name = str(roomId) + "//savedData//" + str(name)
-	with open(name, 'w') as outfile:
-		json.dump(data, outfile)
-
-
-# Login
-
-def login():
-	log("--- NEW LOGIN ---")
-	""" logs in to all the necessary channels"""
-
-	def getField(field, url="", r=""):
-		"""gets the hidden field <field> from string <r> ELSE url <url>"""
-		if r == "":
-			r = sendRequest(url, 'get').text
-			r.encode('utf-8')
-		p = r.find('name="' + field)
-		if p <= 0:
-			error("No field <" + field + "> found", r)
-		p = r.find('value="', p) + len('value="')
-		key = r[p:r.find('"', p + 1)]
-		return key
-	def getFieldValue(field, url="", r=""):
-		"""gets the hidden field value <field> from string <r> ELSE url <url>"""
-		if r == "":
-			r = sendRequest(url, 'get').text
-			r.encode('utf-8')
-		p = r.find(field+'=')
-		if p <= 0:
-			error("No field value <" + field + "> found", r)
-		p = r.find(field+'=', p) + len(field+'=')
-		key = r[p:r.find('&', p + 1)]
-		return key
-
-	# Login to OpenId
+			log("Connection to room {} failed : {}".format(room_id,e))
+		wsurl=r['url']+'?l={}'.format(int(time.time()))
+		self.ws = websocket.create_connection(wsurl, origin="http://chat.stackexchange.com")
+		self.thread = threading.Thread(target=self.run)
+		#self.thread.setDaemon(True)
+		self.thread.start()
+		
+	def run(self):
+		self.running=True
+		while self.running:
+			try:
+				a = self.ws.recv()
+			except websocket.WebSocketConnectionClosedException as e:
+				log('Websocket closed unexpectedly for room {}'.format(self.id))
+				self.running=False
+			if a is not None and a != "" and a!='{"r1":{}}': # not an empty messages
+				self.handleActivity(json.loads(a))
 	
-	payload = {"email": email, "password": password, "isSignup":"false", "isLogin":"true","isPassword":"false","isAddLogin":"false","hasCaptcha":"false","ssrc":"head","submitButton":"Log in",
-			   "fkey": getField("fkey", "https://openid.stackexchange.com/account/login")}
-	r = sendRequest("https://chemistry.stackexchange.com/users/login-or-signup/validation/track","post",payload).text
-	logFile(r,"log_signin.html")
-	if r.find("Login-OK")<0:
-		error("Logging to Chem-SE - FAIL")
-	log("Logging to Chem-SE - OK")
+	def leave(self):
+		log("Left room {}".format(self.id))
+		self.running=False
 	
-	payload = {"email": email, "password": password, "ssrc":"head",
-			   "fkey": getField("fkey", "https://openid.stackexchange.com/account/login")}
-	r = sendRequest("https://chemistry.stackexchange.com/users/login?ssrc=head&returnurl=https%3a%2f%2fchemistry.stackexchange.com%2f","post",payload).text
-	logFile(r,"log_signin2.html")
-	if r.find('<a href="https://chemistry.stackexchange.com/users/logout"')<0:
-		error("Loading Chem-SE profile - FAIL")
-	log("Loading Chem-SE profile - OK")
-	
-	sendRequest("https://chemistry.stackexchange.com/users/login/universal/request","post")
-	
-	"""
-	sendRequest("http://stackexchange.com/users/chat-login", "post")
-	r = sendRequest("http://chat.stackexchange.com/chats/join/favorite", "get").text
-	setGlobalVars("masterFkey", getField("fkey", r=r))
-	log("Got master fkey : " + globalVars["masterFkey"])
-	log("Login to the SE chat successful")"""
-	
-	r = sendRequest("http://chat.chemistry.stackexchange.com/chats/join/favorite", "get").text
-	setGlobalVars("masterFkey", getField("fkey", r=r))
-	print(globalVars["masterFkey"])
-	log("Got master fkey : " + globalVars["masterFkey"])
-	log("Login to the SE chat successful")
-	
-	return session
-
-
-# Chat Functions
-
-def sendMessage(msg, roomId, noDelete=False):  # 10121 : test, 3229 : chemistry
-	roomId = str(roomId).replace("m","")
-	isMetaStr="meta." if globalVars["roomsJoined"][roomId]["meta"] else ""
-	payload = {"fkey": globalVars["masterFkey"], "text": msg}
-	r = sendRequest("http://chat."+isMetaStr+"stackexchange.com/chats/" + roomId + "/messages/new", "post", payload)
-	logFile(r)
-	if r.text.find("You can perform this action again") >= 0:
-		time.sleep(3)
-		sendMessage(msg, roomId)
-	else:
+	def handleActivity(self, activity):
+		log('Got activity {}'.format(activity))
+		activity_timestamp=activity['r1']['t']
+		if "e" in activity['r1']: # if there are events recorded
+			for event in activity['r1']['e']:
+				self.handleEvents(self, event)
+				
+	def sendMessage(self, msg):
+		payload = {"fkey": self.chatbot.fkey, "text": msg}
+		r = self.chatbot.sendRequest("http://chat.stackexchange.com/chats/{}/messages/new".format(self.id), "post", payload)
+		if r.text.find("You can perform this action again") >= 0: # sending messages too fast
+			time.sleep(3)
+			return self.sendMessage(msg)
 		if r.text.find("The message is too long") >= 0:
 			log("Message too long : " + msg)
-			return
+			return False
 		r = r.json()
-
-		if noDelete:  # noDelete actually deletes the message ;_;
-			threading.Thread(target=deleteMessage, args=[r["id"], roomId, 60 * 1.5]).start()
 		return r["id"]
-
-
-def editMessage(msg, id, roomId):
-	roomId = str(roomId).replace("m","")
-	id = str(id)
-	isMetaStr="meta." if globalVars["roomsJoined"][roomId]["meta"] else ""
-	payload = {"fkey": globalVars["masterFkey"], "text": msg}
-	headers = {'Referer': "http://chat."+isMetaStr+"stackexchange.com/rooms/" + roomId}
-	r = sendRequest("http://chat."+isMetaStr+"stackexchange.com/messages/" + id, "post", payload, headers).text
-	if r.find("You can perform this action again") >= 0:
-		time.sleep(3)
-		editMessage(msg, id, roomId)
-
-
-def deleteMessage(id, roomId, waitTime=0):
-	time.sleep(waitTime)
-	roomId = str(roomId).replace("m","")
-	isMetaStr="meta." if globalVars["roomsJoined"][id]["meta"] else ""
-	payload = {"fkey": globalVars["masterFkey"]}
-	headers = {'Referer': "http://chat."+isMetaStr+"stackexchange.com/rooms/" + roomId}
-	r = sendRequest("http://chat."+isMetaStr+"stackexchange.com/messages/" + id + "/delete", "post", payload, headers).text
-	if r.find("You can perform this action again") >= 0:
-		time.sleep(3)
-		deleteMessage(id, roomId)
-
-
-def joinRooms(roomsDict):
-	def joinRooms_main():
-		"""
-		roomsTable is a dict {str(roomId):activityActionFunction}
-		The ActivityActionFunction is triggred every time some activity related to that room is recorded.
-		"""
-		payload = {"fkey": globalVars["masterFkey"], 'since': 0, 'mode': 'Messages', 'msgCount': 100}
-		for key in roomsDict.keys():
-			roomId = str(key)
-			isMeta=roomId.find("m")>=0
-			isMetaStr="meta." if isMeta else ""
-			realId=roomId.replace("m","")
-
-			# configure saved data
-			for name in [roomId, roomId + '//temp', roomId + '//savedData']:
-				if not os.path.exists(name):
-					os.makedirs(name)
-
-			r = sendRequest("http://chat."+isMetaStr+"stackexchange.com/chats/" + realId + "/events", "post", payload).json()
-			t = globalVars["roomsJoined"]
-			t[roomId] = {"eventtime": r['time']}
-
-			r = sendRequest("http://chat."+isMetaStr+"stackexchange.com/rooms/info/" + realId, "post", payload).text  # get room info
-			roomName, roomNetworkUrl = "",""
+	
+	def editMessage(self, msg, msg_id): # edit message with id <msg_id> to have the new content <msg>
+		payload = {"fkey": self.chatbot.fkey, "text": msg}
+		headers = {'Referer': "http://chat.stackexchange.com/rooms/{}".format(self.id)}
+		r = self.chatbot.sendRequest("http://chat.stackexchange.com/messages/{}".format(msg_id), "post", payload, headers).text
+		if r.find("You can perform this action again") >= 0:
+			time.sleep(3)
+			self.editMessage(msg, msg_id)
+	
+# main class
+class Chatbot():
+	def __init__(self, verbose=True):
+		# init vars
+		self.session = requests.Session() # Session for POST/GET requests
+		self.fkey=None # key used by SE to authentify users, needed to talk in the chat
+		self.bot_chat_id=None
+		self.rooms_joined=[]
+		
+		# propagate vars
+		self.verbose=verbose
+		
+	def sendRequest(self, url, typeR="get", payload={}, headers={},verify=True): # sends a POST/GET request to <url> with arguments <payload>, headers <headers>. Will check SSL if <verify>.
+		r = ""
+		successful, tries = False, 0
+		while not successful:
 			try:
-				p = r.find("cdn-chat.sstatic.net/chat/css/chat.")+len("cdn-chat.sstatic.net/chat/css/chat.")
-				roomNetworkUrl = 'http://'+r[p:r.find('.css?', p)]
-				p = r.find("all time messages in ",p)+ len("all time messages in ")
-				roomName = r[p:r.find('"', p)]
-			except Exception:
-				log("Failed to scrape metadata for room : " + roomId)
-			t[roomId]["roomName"] = roomName
-			t[roomId]["meta"] = isMeta
-			t[roomId]["roomNetworkUrl"] = roomNetworkUrl
-			t[roomId]["usersGreeted"] = []
-
-			setGlobalVars("roomsJoined", t)  # update global table
-			log("Joined room : " + roomName + " / id: " + roomId)
-		while True:
-			for key in globalVars["roomsJoined"]:
-				try:
-					room = globalVars["roomsJoined"][key]
-					roomId = key.replace("m","")
-					isMetaStr="meta." if room["meta"] else ""
-					lastTime = room["eventtime"]
-					payload = {"fkey": globalVars["masterFkey"], 'r' + roomId: lastTime}
-					activity = sendRequest("http://chat."+isMetaStr+"stackexchange.com/events", "post", payload).json()
-					roomResult = {}
-					try:  # update eventtime
-						roomResult = activity['r' + roomId]
-						eventtime = roomResult['t']
-						t = globalVars["roomsJoined"]
-						t[roomId]["eventtime"] = eventtime
-						setGlobalVars("roomsJoined", t)
-					except KeyError as ex:
-						pass
-					activityHandler = roomsDict[key]
-					try:
-						activityHandler(roomResult)  # send activity to designated function
-					except Exception as e:
-						log("Error occured while sending event <" + str(roomResult) + "> : " + getException())
-				except Exception as e:
-					log('Error while receiving json data from a chatroom : '+str(e))
-					#print(isMeta,key,globalVars["roomsJoined"][key])
-			time.sleep(5)
-	threading.Thread(target=joinRooms_main).start()
-
-def enableControl(roomId):
-	def enableControl_main(roomId):
-		roomId=str(roomId)
-		while not (roomId in globalVars["roomsJoined"]):
-			time.sleep(1)
-		while not ("roomName" in globalVars["roomsJoined"][roomId]):
-			time.sleep(1)
-		roomName=globalVars["roomsJoined"][roomId]["roomName"]
-		while True:
-			msg=str(input(roomName + ' ('+roomId+') > '))
-			try:
-				sendMessage(msg,roomId)
+				if typeR == "get":
+					r = self.session.get(url, data=payload, headers=headers, verify=verify)
+				elif typeR == "post":
+					r = self.session.post(url, data=payload, headers=headers, verify=verify)
+				else:
+					log("Error while sending requets -  Invalid request type :" + str(typeR))
+				successful = True
 			except Exception as e:
-				print('Failed : '+str(e))
-	threading.Thread(target=enableControl_main,args={roomId}).start()
+				time.sleep(1)
+				if tries > 4:
+					if type(r) != type(""):  # string or request object ?
+						r = r.text
+					log("Error while sending requets - The request failed : " + str(e), r)
+				tries += 1
+		return r
+	
+	def log(self, msg, name="logs/log.txt"): # Logging messages and errors | Appends <msg> to the log <name>, prints if self.verbose
+		log(msg,name,verbose=self.verbose)
+		
+	def login(self): # Login to SE
+		def getField(field, url="", r=""):
+			"""gets the hidden field <field> from string <r> ELSE url <url>"""
+			if r == "":
+				r = self.sendRequest(url, 'get').text
+				r.encode('utf-8')
+			p = r.find('name="' + field)
+			if p <= 0:
+				error("No field <" + field + "> found", r)
+			p = r.find('value="', p) + len('value="')
+			key = r[p:r.find('"', p + 1)]
+			return key
+		self.log("--- NEW LOGIN ---")
+		# get credidentials
+		email, password=get_credidentials()
+		
+		# Login to OpenId / CSE
+		fkey=getField("fkey", "https://openid.stackexchange.com/account/login")
+		payload = {"email": email, "password": password, "isSignup":"false", "isLogin":"true","isPassword":"false","isAddLogin":"false","hasCaptcha":"false","ssrc":"head","submitButton":"Log in",
+			   "fkey": fkey}
+		r = self.sendRequest("https://chemistry.stackexchange.com/users/login-or-signup/validation/track","post",payload).text
+		if r.find("Login-OK")<0:
+			Log("Logging to Chem-SE - FAILURE - aborting")
+			abort()
+		log("Logging to Chem-SE - OK")
+		
+		payload = {"email": email, "password": password, "ssrc":"head", "fkey": fkey}
+		r = self.sendRequest("https://chemistry.stackexchange.com/users/login?ssrc=head&returnurl=https%3a%2f%2fchemistry.stackexchange.com%2f","post",payload).text
+		if r.find('<a href="https://chemistry.stackexchange.com/users/logout"')<0:
+			error("Loading Chem-SE profile - FAILURE -  aborting")
+			abort()
+		log("Loading Chem-SE profile - OK")
+		
+		# Logs in to all other SE sites
+		self.sendRequest("https://chemistry.stackexchange.com/users/login/universal/request","post")
+		
+		# get chat key
+		r = self.sendRequest("http://chat.chemistry.stackexchange.com/chats/join/favorite", "get").text
+		p=r.find('<a href="/users/')+len('<a href="/users/')
+		self.bot_chat_id=int(r[p:r.find('/',p)])
+		fkey=getField("fkey", r=r) # /!\ changes from previous one
+		self.fkey=fkey
+		log("Got chat fkey : {}".format(fkey))
+		log("Login to the SE chat successful")
 
-def getNetworkQuestions(roomId,minVotes,maxNumber=200):
-	roomId = str(roomId)
-	while not (roomId in globalVars["roomsJoined"]):
-		time.sleep(1)
-	while not ("roomNetworkUrl" in globalVars["roomsJoined"][roomId]):
-		time.sleep(1)
-	qUrl=globalVars["roomsJoined"][roomId]["roomNetworkUrl"]
-	topUrl=qUrl+"/questions"
-	questionsTable=[]
-	i,page=0,0
-	finished=False
-	while not finished:
-		page+=1
-		r=sendRequest(topUrl+"?pagesize=50&page="+str(page)+"&sort=votes").text
-		if r.find("Page Not Found")>=0:
-			finished=True
-			break
-		p=r.find('id="question-summary-')
-		while p>=0 and not finished:
-			if i>=maxNumber:
-				finished=True
-				break
-			p+=len('id="question-summary-')
-			questionId = r[p:r.find('">',p)]
-			p=r.find('vote-count-post "><strong>',p)+len('vote-count-post "><strong>')
-			votes=int(r[p:r.find('</strong>',p)])
-			if votes<minVotes:
-				finished=True
-				break
-			questionsTable.append(topUrl+'/'+questionId)
-			i += 1
-			p = r.find('id="question-summary-',p)
-	setSavedData("questions_interesting_"+str(minVotes),questionsTable,roomId)
-	log("Got "+str(i)+" questions above "+str(minVotes)+" in "+str(page)+" pages from "+topUrl)
-	return questionsTable
+	def join_room(self,room_id,handleEvents): # Join a chatroom
+		r=Room(room_id, self, handleEvents)
+		self.rooms_joined.append(r)
+		return r
+	
+	def leave_all_rooms(self):
+		for room in self.rooms_joined:
+			room.leave()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
