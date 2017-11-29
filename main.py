@@ -140,7 +140,7 @@ coolTables = {
 }
 
 def handleEvents(room, event):
-	if event['user_id']==chatbot.bot_chat_id: return # don't consider events from the bot*
+	if 'user_id' in event and event['user_id']==chatbot.bot_chat_id: return # don't consider events from the bot*
 	if event['event_type']==1: # event: new message
 		handleMessage(room, event)
 	if event['event_type']==3: # event: user entered the room
@@ -278,7 +278,7 @@ def handleMessage(room, event):
 					try:
 						func(room, event, *args)
 					except Exception as e:
-						log("An error occured while launcing function {} with args {} : {}".format(cmd_msg, args, e))
+						log("An error occured while launching function {} with args {} : {}".format(cmd_msg, args, e))
 				
 			
 

@@ -30,7 +30,7 @@ def log(msg, name="logs/log.txt",verbose=True): # Logging messages and errors | 
 	with open(name, "ab") as f:
 		timeStr = str(time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(time.time())))
 		f.write('{} {}\n'.format(timeStr,msg).encode('utf-8'))
-		if verbose: print('<Log> {}'.format(msg))
+		if verbose: print('<Log> {}'.format(msg.encode('utf-8')))
 
 def logFile(r,name="logs/logFile.html"):  # logs the string in the file <name>. Will overwrite previous data.
 	with open(name, "wb") as f:
@@ -154,14 +154,16 @@ class Room():
 				
 	def sendMessage(self, msg):
 		payload = {"fkey": self.chatbot.fkey, "text": msg}
-		r = self.chatbot.sendRequest("http://chat.stackexchange.com/chats/{}/messages/new".format(self.id), "post", payload)
+		headers={'Referer': 'https://chat.stackexchange.com/rooms/{}/sandbox'.format(self.id),'Origin': 'https://chat.stackexchange.com'}
+		r = self.chatbot.sendRequest("http://chat.stackexchange.com/chats/{}/messages/new".format(self.id), "post", payload, headers=headers)
 		if r.text.find("You can perform this action again") >= 0: # sending messages too fast
 			time.sleep(3)
 			return self.sendMessage(msg)
 		if r.text.find("The message is too long") >= 0:
-			log("Message too long : " + msg)
+			log("Message too long : {}".format(msg))
 			return False
 		r = r.json()
+		print(r)
 		return r["id"]
 	
 	def editMessage(self, msg, msg_id): # edit message with id <msg_id> to have the new content <msg>
@@ -180,10 +182,11 @@ class Chatbot():
 		self.fkey=None # key used by SE to authentify users, needed to talk in the chat
 		self.bot_chat_id=None
 		self.rooms_joined=[]
+		self.host=None
 		
 		# propagate vars
 		self.verbose=verbose
-		
+	
 	def sendRequest(self, url, typeR="get", payload={}, headers={},verify=True): # sends a POST/GET request to <url> with arguments <payload>, headers <headers>. Will check SSL if <verify>.
 		r = ""
 		successful, tries = False, 0
@@ -192,16 +195,17 @@ class Chatbot():
 				if typeR == "get":
 					r = self.session.get(url, data=payload, headers=headers, verify=verify)
 				elif typeR == "post":
-					r = self.session.post(url, data=payload, headers=headers, verify=verify)
+					r = self.session.post(url, data=payload, headers=headers, verify=verify, cookies=requests.utils.dict_from_cookiejar(self.session.cookies)) # ugly patch
 				else:
-					log("Error while sending requets -  Invalid request type :" + str(typeR))
+					log("Error while sending requets -  Invalid request type :{}".format(typeR))
 				successful = True
 			except Exception as e:
 				time.sleep(1)
-				if tries > 4:
+				if tries >= 4:
 					if type(r) != type(""):  # string or request object ?
 						r = r.text
-					log("Error while sending requets - The request failed : " + str(e), r)
+					log("Error while sending request - The request failed : {}".format(e))
+					return False
 				tries += 1
 		return r
 	
@@ -230,7 +234,7 @@ class Chatbot():
 			   "fkey": fkey}
 		r = self.sendRequest("https://{}/users/login-or-signup/validation/track".format(host),"post",payload).text
 		if r.find("Login-OK")<0:
-			Log("Logging to SE - FAILURE - aborting")
+			log("Logging to SE - FAILURE - aborting")
 			abort()
 		log("Logging to SE - OK")
 		
@@ -252,7 +256,7 @@ class Chatbot():
 		self.fkey=fkey
 		log("Got chat fkey : {}".format(fkey))
 		log("Login to the SE chat successful")
-
+	
 	def joinRoom(self,room_id,handleEvents): # Join a chatroom
 		r=Room(room_id, self, handleEvents)
 		self.rooms_joined.append(r)
